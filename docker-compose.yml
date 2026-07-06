@@ -1,6 +1,6 @@
 services:
   remote-multistreamer:
-    build: .
+    image: ghcr.io/jlips24/fanout-live:latest
     container_name: remote-multistreamer
     restart: unless-stopped
     ports:

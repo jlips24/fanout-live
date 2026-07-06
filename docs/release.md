@@ -33,8 +33,10 @@ validation.
 If the release changes Docker behavior, also build the image locally:
 
 ```bash
-make docker-build IMAGE=ghcr.io/jlips24/fanout-live TAG=VERSION
+make docker-build IMAGE=ghcr.io/jlips24/fanout-live TAG=0.1.1
 ```
+
+Replace `0.1.1` with the version you are releasing.
 
 ## 3. Understand the GitHub Workflows
 
@@ -59,10 +61,10 @@ For this repository, that resolves to:
 ghcr.io/jlips24/fanout-live
 ```
 
-That matches `docker-compose.yml`, so pushing `vVERSION` publishes these tags:
+That matches `docker-compose.yml`, so pushing `v0.1.1` publishes these tags:
 
-- `ghcr.io/jlips24/fanout-live:VERSION`
-- `ghcr.io/jlips24/fanout-live:MAJOR.MINOR`
+- `ghcr.io/jlips24/fanout-live:0.1.1`
+- `ghcr.io/jlips24/fanout-live:0.1`
 - `ghcr.io/jlips24/fanout-live:latest`
 
 Prefer releasing by pushing a semver tag. Use manual `workflow_dispatch` only
@@ -98,8 +100,10 @@ docker run --rm \
   -p 1935:1935 \
   -p 8080:8080 \
   -v "$PWD/data:/config" \
-  ghcr.io/jlips24/fanout-live:VERSION
+  ghcr.io/jlips24/fanout-live:0.1.1
 ```
+
+Replace `0.1.1` with the version you are releasing.
 
 ## 5. Commit and Tag
 
@@ -108,13 +112,13 @@ Commit the release updates:
 ```bash
 git status
 git add pyproject.toml
-git commit -m "Release VERSION"
+git commit -m "Release 0.1.1"
 ```
 
 Create an annotated tag:
 
 ```bash
-git tag -a vVERSION -m "Fanout Live VERSION"
+git tag -a v0.1.1 -m "Fanout Live 0.1.1"
 ```
 
 ## 6. Push Git Refs
@@ -130,7 +134,7 @@ Wait for the CI workflow to pass on `main` or `master`.
 Then push the release tag:
 
 ```bash
-git push origin vVERSION
+git push origin v0.1.1
 ```
 
 Pushing the tag starts the release workflow. Do not manually push the same image
@@ -142,21 +146,23 @@ outside the workflow.
 In GitHub Actions, verify:
 
 - The `CI` workflow passed for the release commit
-- The `Release` workflow ran for `refs/tags/vVERSION`
+- The `Release` workflow ran for `refs/tags/v0.1.1`
 - The `Build and publish container` job completed
 - The generated GitHub release exists
-- The GHCR package has the `VERSION`, `MAJOR.MINOR`, and `latest` tags
+- The GHCR package has the `0.1.1`, `0.1`, and `latest` tags
 
 ## 8. Verify the Published Image
 
 Pull and run the published tag from a clean local environment or test host:
 
 ```bash
-docker pull ghcr.io/jlips24/fanout-live:VERSION
-FANOUT_LIVE_TAG=VERSION docker compose up -d
+docker pull ghcr.io/jlips24/fanout-live:0.1.1
+FANOUT_LIVE_TAG=0.1.1 docker compose up -d
 docker compose ps
 docker compose logs -f
 ```
+
+Replace `0.1.1` with the version you released.
 
 Confirm the dashboard is reachable and the app reports healthy status.
 
@@ -175,7 +181,7 @@ and edit if needed to include:
 - User-facing changes
 - Upgrade notes or config changes
 - Known issues, if any
-- The published image tag: `ghcr.io/jlips24/fanout-live:VERSION`
+- The published image tag: `ghcr.io/jlips24/fanout-live:0.1.1`
 
 After publishing the notes, test the README quick-start command with the new
 tag.

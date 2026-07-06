@@ -4,12 +4,15 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Fanout Live</title>
+    <link rel="icon" href="/assets/favicon.ico">
+    <link rel="apple-touch-icon" href="/assets/logo-512.png">
     <link rel="stylesheet" href="/styles.css?v=20260704">
   </head>
   <body class="auth-checking">
     <section id="login-screen" class="login-screen" hidden>
       <form id="login-form" class="login-panel">
-        <div>
+        <div class="brand-lockup">
+          <img src="/assets/logo-256.png" alt="" aria-hidden="true">
           <h1>Fanout Live</h1>
           <p id="login-subtitle">Sign in to manage the relay.</p>
         </div>
@@ -28,9 +31,12 @@
 
     <main id="app-shell" class="shell" hidden>
       <header class="topbar">
-        <div>
-          <h1>Fanout Live</h1>
-          <p id="stream-summary">Waiting for relay status...</p>
+        <div class="brand-lockup">
+          <img src="/assets/logo-256.png" alt="" aria-hidden="true">
+          <div>
+            <h1>Fanout Live</h1>
+            <p id="stream-summary">Waiting for relay status...</p>
+          </div>
         </div>
         <div class="actions" aria-label="Relay controls">
           <span id="message" class="message-inline"></span>

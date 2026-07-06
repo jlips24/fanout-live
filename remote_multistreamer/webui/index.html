@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Remote Multi-Streamer</title>
+    <link rel="stylesheet" href="/styles.css?v=20260704">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <h1>Remote Multi-Streamer</h1>
+          <p id="stream-summary">Waiting for relay status...</p>
+        </div>
+        <div class="actions" aria-label="Relay controls">
+          <span id="message" class="message-inline"></span>
+          <span class="status-pill"><span class="status-dot" id="status-dot"></span><span id="status-text">Checking</span></span>
+          <button id="settings-button" class="glyph-button settings-button" type="button" title="Open settings" aria-label="Open settings">⚙</button>
+        </div>
+      </header>
+
+      <section class="hero-grid">
+        <div class="preview-panel">
+          <div class="preview-frame" id="preview-frame">
+            <img id="preview-image" alt="Live source preview" hidden>
+            <div id="preview-placeholder">
+              <strong id="preview-title">No stream detected</strong>
+              <span id="preview-detail">Start the relay, then point OBS at the source URL.</span>
+            </div>
+          </div>
+        </div>
+        <aside class="side-panel">
+          <div class="control-group relay-control" aria-label="Relay controls">
+            <span class="control-label">Relay</span>
+            <span class="control-detail">Starts/stops RTMP ingest and all enabled pipelines together.</span>
+            <div class="control-buttons">
+              <button id="stop-button" class="secondary" type="button" title="Stop relay">Stop</button>
+              <button id="start-button" type="button" title="Start relay">Start</button>
+            </div>
+          </div>
+          <section class="source-panel" aria-label="Source">
+            <h2>Source</h2>
+            <dl>
+              <div><dt>Name</dt><dd id="source-name">-</dd></div>
+              <div><dt>OBS Server</dt><dd id="source-url">-</dd></div>
+              <div>
+                <dt>OBS Key</dt>
+                <dd class="secret-row">
+                  <span class="input-actions">
+                    <input id="source-key" type="password" readonly>
+                    <button id="toggle-source-key" class="glyph-button" type="button" title="Reveal stream key" aria-label="Reveal stream key">◉</button>
+                    <button id="copy-source-key" class="glyph-button" type="button" title="Copy stream key" aria-label="Copy stream key">⧉</button>
+                  </span>
+                </dd>
+              </div>
+            </dl>
+          </section>
+        </aside>
+      </section>
+
+      <section class="band">
+        <div class="section-head">
+          <div>
+            <h2>Pipelines</h2>
+            <p>Routes from an input source through optional transcodes to an output destination.</p>
+          </div>
+          <button id="add-pipeline-main" class="secondary" type="button" title="Add pipeline">Add</button>
+        </div>
+        <div id="pipeline-list" class="pipeline-list"></div>
+      </section>
+
+    </main>
+
+    <dialog id="settings-dialog">
+      <form method="dialog" class="settings">
+        <header class="settings-head">
+          <div>
+            <h2>Settings</h2>
+            <p>Configure sources, destinations, pipelines, and FFmpeg defaults.</p>
+          </div>
+          <button id="close-settings" class="icon-button" type="button" title="Close settings">X</button>
+        </header>
+
+        <nav class="tabs" aria-label="Settings tabs">
+          <button class="tab active" data-tab="pipelines" type="button">Pipelines</button>
+          <button class="tab" data-tab="sources" type="button">Sources</button>
+          <button class="tab" data-tab="destinations" type="button">Destinations</button>
+          <button class="tab" data-tab="engine" type="button">Engine</button>
+        </nav>
+
+        <section class="tab-panel active" id="tab-pipelines">
+          <div class="section-head">
+            <h3>Pipelines</h3>
+            <button id="add-pipeline" class="secondary" type="button">Add</button>
+          </div>
+          <div id="pipeline-settings" class="stack"></div>
+        </section>
+
+        <section class="tab-panel" id="tab-sources">
+          <div class="section-head">
+            <h3>Sources</h3>
+            <button id="add-source" class="secondary" type="button">Add</button>
+          </div>
+          <div id="sources" class="stack"></div>
+        </section>
+
+        <section class="tab-panel" id="tab-destinations">
+          <div class="section-head">
+            <h3>Destinations</h3>
+            <button id="add-destination" class="secondary" type="button">Add</button>
+          </div>
+          <div id="destinations" class="stack"></div>
+        </section>
+
+        <section class="tab-panel" id="tab-engine">
+          <div class="grid engine-grid">
+            <label>
+              Binary
+              <input id="ffmpeg-binary" autocomplete="off" spellcheck="false">
+            </label>
+            <label>
+              Log level
+              <select id="ffmpeg-log-level">
+                <option value="quiet">quiet</option>
+                <option value="error">error</option>
+                <option value="warning">warning</option>
+                <option value="info">info</option>
+                <option value="verbose">verbose</option>
+                <option value="debug">debug</option>
+              </select>
+            </label>
+          </div>
+        </section>
+      </form>
+    </dialog>
+
+    <template id="pipeline-card-template">
+      <article class="pipeline-card">
+        <div class="card-top">
+          <label class="switch"><input class="pipeline-enabled" type="checkbox"><span></span></label>
+          <label class="name-field">Name<input class="pipeline-name" autocomplete="off" spellcheck="false"></label>
+          <button class="icon-button remove-pipeline" type="button" title="Remove pipeline">X</button>
+        </div>
+        <div class="grid pipeline-grid">
+          <label>Source<select class="pipeline-source"></select></label>
+          <label>Destination<select class="pipeline-destination"></select></label>
+          <label>Mode<select class="pipeline-mode"><option value="copy">Direct copy</option><option value="transcode">Transcode</option></select></label>
+          <label class="transcode-field">Codec<select class="pipeline-codec"><option value="h264">H.264</option><option value="hevc">HEVC</option><option value="av1">AV1</option></select></label>
+          <label class="transcode-field">Video kbps<input class="pipeline-video-bitrate" type="number" min="1" max="65535"></label>
+          <label class="transcode-field">Audio kbps<input class="pipeline-audio-bitrate" type="number" min="1" max="1024"></label>
+          <label class="transcode-field">Preset<input class="pipeline-preset" autocomplete="off" spellcheck="false"></label>
+        </div>
+      </article>
+    </template>
+
+    <template id="source-template">
+      <article class="settings-card">
+        <div class="card-top">
+          <label class="switch"><input class="source-enabled" type="checkbox"><span></span></label>
+          <label class="name-field">Name<input class="source-name" autocomplete="off" spellcheck="false"></label>
+          <button class="icon-button remove-source" type="button" title="Remove source">X</button>
+        </div>
+        <div class="grid source-grid">
+          <label>Bind host<input class="source-host" autocomplete="off" spellcheck="false"></label>
+          <label>Port<input class="source-port" inputmode="numeric" type="number" min="1" max="65535"></label>
+          <label>App<input class="source-app" autocomplete="off" spellcheck="false"></label>
+          <label>
+            Stream key
+            <span class="input-actions">
+              <input class="source-stream" autocomplete="off" spellcheck="false" type="password">
+              <button class="glyph-button toggle-source-stream" type="button" title="Reveal stream key" aria-label="Reveal stream key">◉</button>
+              <button class="glyph-button copy-source-stream" type="button" title="Copy stream key" aria-label="Copy stream key">⧉</button>
+              <button class="glyph-button rotate-source-stream" type="button" title="Rotate stream key" aria-label="Rotate stream key">↻</button>
+            </span>
+          </label>
+        </div>
+      </article>
+    </template>
+
+    <template id="destination-template">
+      <article class="settings-card">
+        <div class="card-top">
+          <label class="switch"><input class="destination-enabled" type="checkbox"><span></span></label>
+          <label class="name-field">Name<input class="destination-name" autocomplete="off" spellcheck="false"></label>
+          <button class="icon-button remove-destination" type="button" title="Remove destination">X</button>
+        </div>
+        <div class="grid destination-grid">
+          <label>Service<select class="destination-service"><option value="youtube">YouTube</option><option value="twitch">Twitch</option><option value="file">Record to disk</option><option value="custom">Custom RTMP</option></select></label>
+          <label class="destination-key-field">Stream key<input class="destination-stream-key" autocomplete="off" spellcheck="false" type="password"></label>
+          <label class="destination-url-field">RTMP URL<input class="destination-url" autocomplete="off" spellcheck="false"></label>
+        </div>
+      </article>
+    </template>
+
+    <script src="/app.js?v=20260704"></script>
+  </body>
+</html>

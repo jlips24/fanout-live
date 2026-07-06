@@ -1,0 +1,21 @@
+[project]
+name = "remote-multistreamer"
+version = "0.1.0"
+description = "Lightweight RTMP relay for rebroadcasting one OBS stream to multiple platforms."
+requires-python = ">=3.11"
+
+[project.scripts]
+remote-multistreamer = "remote_multistreamer.cli:main"
+
+[tool.isort]
+profile = "black"
+line_length = 100
+known_first_party = ["remote_multistreamer"]
+
+[tool.coverage.run]
+branch = true
+source = ["remote_multistreamer"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true

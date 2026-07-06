@@ -1,0 +1,16 @@
+[Unit]
+Description=Remote Multi-Streamer RTMP Relay
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/remote-multistreamer
+Environment=TWITCH_STREAM_KEY=replace-me
+Environment=YOUTUBE_STREAM_KEY=replace-me
+ExecStart=/usr/bin/python3 -m remote_multistreamer --web --config /opt/remote-multistreamer/config.toml --web-host 0.0.0.0 --web-port 8080
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

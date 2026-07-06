@@ -1,0 +1,10 @@
+services:
+  remote-multistreamer:
+    build: .
+    container_name: remote-multistreamer
+    restart: unless-stopped
+    ports:
+      - "1935:1935"
+      - "8080:8080"
+    volumes:
+      - ./data:/config

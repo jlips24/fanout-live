@@ -1,0 +1,12 @@
+[ffmpeg]
+binary = "ffmpeg"
+log_level = "info"
+
+[[sources]]
+id = "obs"
+name = "obs"
+enabled = true
+host = "0.0.0.0"
+port = 1935
+app = "live"
+stream = "rms_replace_with_a_generated_key"

@@ -11,7 +11,8 @@ WEB_HOST ?= 0.0.0.0
 WEB_PORT ?= 8080
 IMAGE ?= remote-multistreamer
 TAG ?= local
-FANOUT_LIVE_TAG ?= 0.1.0
+VERSION ?= $(shell $(SYSTEM_PYTHON) -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')
+FANOUT_LIVE_TAG ?= $(VERSION)
 COMPOSE ?= docker compose
 
 .DEFAULT_GOAL := help

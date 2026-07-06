@@ -52,6 +52,4 @@ jobs:
         run: python -m compileall remote_multistreamer tests
 
       - name: Validate Docker Compose config
-        env:
-          FANOUT_LIVE_TAG: 0.1.0
-        run: docker compose config
+        run: make compose-config

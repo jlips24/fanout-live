@@ -6,18 +6,17 @@ Use this checklist to cut a new Fanout Live release.
 
 Choose the next semantic version, for example `0.1.1`.
 
-Update every repo-owned reference to the old version:
+Update the single source of truth:
 
 - `pyproject.toml`: `[project] version`
-- `remote_multistreamer/__init__.py`: `__version__`
-- `Makefile`: `FANOUT_LIVE_TAG`
-- `README.md`: quick-start and example commands
-- `.github/workflows/ci.yml`: `FANOUT_LIVE_TAG` used for Compose validation
+
+The package `__version__` and the Makefile's default `FANOUT_LIVE_TAG` are
+derived from this value.
 
 Check for any remaining old references:
 
 ```bash
-rg "0\.1\.0|FANOUT_LIVE_TAG|__version__|version =|ghcr.io"
+rg "0\.1\.0"
 ```
 
 ## 2. Run Local Checks
@@ -34,7 +33,7 @@ validation.
 If the release changes Docker behavior, also build the image locally:
 
 ```bash
-make docker-build IMAGE=ghcr.io/jlips24/fanout-live TAG=0.1.1
+make docker-build IMAGE=ghcr.io/jlips24/fanout-live TAG=VERSION
 ```
 
 ## 3. Understand the GitHub Workflows
@@ -60,10 +59,10 @@ For this repository, that resolves to:
 ghcr.io/jlips24/fanout-live
 ```
 
-That matches `docker-compose.yml`, so pushing `v0.1.1` publishes these tags:
+That matches `docker-compose.yml`, so pushing `vVERSION` publishes these tags:
 
-- `ghcr.io/jlips24/fanout-live:0.1.1`
-- `ghcr.io/jlips24/fanout-live:0.1`
+- `ghcr.io/jlips24/fanout-live:VERSION`
+- `ghcr.io/jlips24/fanout-live:MAJOR.MINOR`
 - `ghcr.io/jlips24/fanout-live:latest`
 
 Prefer releasing by pushing a semver tag. Use manual `workflow_dispatch` only
@@ -99,7 +98,7 @@ docker run --rm \
   -p 1935:1935 \
   -p 8080:8080 \
   -v "$PWD/data:/config" \
-  ghcr.io/jlips24/fanout-live:0.1.1
+  ghcr.io/jlips24/fanout-live:VERSION
 ```
 
 ## 5. Commit and Tag
@@ -108,14 +107,14 @@ Commit the release updates:
 
 ```bash
 git status
-git add pyproject.toml remote_multistreamer/__init__.py Makefile README.md .github/workflows/ci.yml docs/release.md
-git commit -m "Release 0.1.1"
+git add pyproject.toml
+git commit -m "Release VERSION"
 ```
 
 Create an annotated tag:
 
 ```bash
-git tag -a v0.1.1 -m "Fanout Live 0.1.1"
+git tag -a vVERSION -m "Fanout Live VERSION"
 ```
 
 ## 6. Push Git Refs
@@ -131,7 +130,7 @@ Wait for the CI workflow to pass on `main` or `master`.
 Then push the release tag:
 
 ```bash
-git push origin v0.1.1
+git push origin vVERSION
 ```
 
 Pushing the tag starts the release workflow. Do not manually push the same image
@@ -143,18 +142,18 @@ outside the workflow.
 In GitHub Actions, verify:
 
 - The `CI` workflow passed for the release commit
-- The `Release` workflow ran for `refs/tags/v0.1.1`
+- The `Release` workflow ran for `refs/tags/vVERSION`
 - The `Build and publish container` job completed
 - The generated GitHub release exists
-- The GHCR package has the `0.1.1`, `0.1`, and `latest` tags
+- The GHCR package has the `VERSION`, `MAJOR.MINOR`, and `latest` tags
 
 ## 8. Verify the Published Image
 
 Pull and run the published tag from a clean local environment or test host:
 
 ```bash
-docker pull ghcr.io/jlips24/fanout-live:0.1.1
-FANOUT_LIVE_TAG=0.1.1 docker compose up -d
+docker pull ghcr.io/jlips24/fanout-live:VERSION
+FANOUT_LIVE_TAG=VERSION docker compose up -d
 docker compose ps
 docker compose logs -f
 ```
@@ -176,7 +175,7 @@ and edit if needed to include:
 - User-facing changes
 - Upgrade notes or config changes
 - Known issues, if any
-- The published image tag: `ghcr.io/jlips24/fanout-live:0.1.1`
+- The published image tag: `ghcr.io/jlips24/fanout-live:VERSION`
 
 After publishing the notes, test the README quick-start command with the new
 tag.

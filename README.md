@@ -176,6 +176,11 @@ Tailscale is a good next step before putting the dashboard on the open internet.
 Fanout Live is licensed under the GNU Affero General Public License v3.0 only.
 See [LICENSE](LICENSE) for details.
 
+## AI Assistance
+
+Parts of this project were developed with assistance from AI tools. All changes
+should still be reviewed, tested, and maintained by the project maintainers.
+
 ## Development
 
 For local development, install Python 3.11 or newer and FFmpeg with RTMP

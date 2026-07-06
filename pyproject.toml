@@ -1,6 +1,6 @@
 [project]
 name = "remote-multistreamer"
-version = "0.1.0"
+version = "0.1.1"
 description = "Lightweight RTMP relay for rebroadcasting one OBS stream to multiple platforms."
 requires-python = ">=3.11"
 license = "AGPL-3.0-only"

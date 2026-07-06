@@ -142,6 +142,32 @@ button.secondary:hover,
   margin-bottom: 22px;
 }
 
+.brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.brand-lockup img {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  border-radius: 10px;
+}
+
+.login-panel .brand-lockup {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+}
+
+.login-panel .brand-lockup img {
+  width: 58px;
+  height: 58px;
+  border-radius: 14px;
+}
+
 h1,
 h2,
 h3,

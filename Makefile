@@ -11,6 +11,7 @@ WEB_HOST ?= 0.0.0.0
 WEB_PORT ?= 8080
 IMAGE ?= remote-multistreamer
 TAG ?= local
+FANOUT_LIVE_TAG ?= 0.1.0
 COMPOSE ?= docker compose
 
 .DEFAULT_GOAL := help
@@ -81,28 +82,28 @@ docker-run: ## Run the Docker image directly, using ./data for config persistenc
 
 .PHONY: compose-config
 compose-config: ## Validate docker-compose.yml.
-	$(COMPOSE) config
+	FANOUT_LIVE_TAG="$(FANOUT_LIVE_TAG)" $(COMPOSE) config
 
 .PHONY: docker-up
-docker-up: ## Build and start the Compose service in the background.
+docker-up: ## Pull and start the published Compose service in the background.
 	mkdir -p "$(DATA_DIR)"
-	$(COMPOSE) up -d --build
+	FANOUT_LIVE_TAG="$(FANOUT_LIVE_TAG)" $(COMPOSE) up -d
 
 .PHONY: docker-down
 docker-down: ## Stop and remove the Compose service.
-	$(COMPOSE) down
+	FANOUT_LIVE_TAG="$(FANOUT_LIVE_TAG)" $(COMPOSE) down
 
 .PHONY: docker-restart
 docker-restart: docker-down docker-up ## Restart the Compose service.
 
 .PHONY: docker-logs
 docker-logs: ## Follow Compose service logs.
-	$(COMPOSE) logs -f
+	FANOUT_LIVE_TAG="$(FANOUT_LIVE_TAG)" $(COMPOSE) logs -f
 
 .PHONY: docker-ps
 docker-ps: ## Show Compose service status.
-	$(COMPOSE) ps
+	FANOUT_LIVE_TAG="$(FANOUT_LIVE_TAG)" $(COMPOSE) ps
 
 .PHONY: docker-shell
 docker-shell: ## Open a shell in the running Compose service container.
-	$(COMPOSE) exec remote-multistreamer /bin/sh
+	FANOUT_LIVE_TAG="$(FANOUT_LIVE_TAG)" $(COMPOSE) exec remote-multistreamer /bin/sh

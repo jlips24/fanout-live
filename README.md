@@ -1,5 +1,7 @@
 # Fanout Live
 
+[![CI](https://github.com/jlips24/fanout-live/actions/workflows/ci.yml/badge.svg)](https://github.com/jlips24/fanout-live/actions/workflows/ci.yml) [![Release](https://github.com/jlips24/fanout-live/actions/workflows/release.yml/badge.svg)](https://github.com/jlips24/fanout-live/actions/workflows/release.yml)
+
 Self-hosted live stream relay for homelabs. Send one OBS stream to Fanout Live,
 then route it to Twitch, YouTube, recordings, or custom RTMP destinations from a
 web UI.
@@ -37,10 +39,10 @@ Start a released Fanout Live image with Docker Compose:
 
 ```bash
 mkdir -p data
-FANOUT_LIVE_TAG=0.1.0 docker compose up -d
+FANOUT_LIVE_TAG=latest docker compose up -d
 ```
 
-Replace `0.1.0` with the release tag you want to deploy or roll back to.
+Replace `latest` with a specific release tag when you want to pin or roll back.
 
 Then open:
 
@@ -89,7 +91,7 @@ For a published image, the intended deployment shape is:
 ```yaml
 services:
   remote-multistreamer:
-    image: ghcr.io/YOUR_GITHUB_USERNAME/fanout-live:${FANOUT_LIVE_TAG:?Set FANOUT_LIVE_TAG to a released version}
+    image: ghcr.io/jlips24/fanout-live:${FANOUT_LIVE_TAG:?Set FANOUT_LIVE_TAG to a released version}
     container_name: remote-multistreamer
     restart: unless-stopped
     ports:
@@ -204,7 +206,7 @@ Useful overrides:
 make run-web WEB_PORT=9090
 make dry-run CONFIG=data/config.toml
 make docker-build IMAGE=fanout-live TAG=dev
-make docker-up FANOUT_LIVE_TAG=0.1.0
+make docker-up FANOUT_LIVE_TAG=latest
 ```
 
 The web UI is the preferred way to edit configuration. The persisted config is

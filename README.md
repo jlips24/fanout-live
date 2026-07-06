@@ -40,6 +40,8 @@ mkdir -p data
 FANOUT_LIVE_TAG=0.1.0 docker compose up -d
 ```
 
+Replace `0.1.0` with the release tag you want to deploy or roll back to.
+
 Then open:
 
 ```text
@@ -86,9 +88,9 @@ For a published image, the intended deployment shape is:
 
 ```yaml
 services:
-  fanout-live:
+  remote-multistreamer:
     image: ghcr.io/YOUR_GITHUB_USERNAME/fanout-live:${FANOUT_LIVE_TAG:?Set FANOUT_LIVE_TAG to a released version}
-    container_name: fanout-live
+    container_name: remote-multistreamer
     restart: unless-stopped
     ports:
       - "1935:1935"
@@ -188,6 +190,7 @@ Useful overrides:
 make run-web WEB_PORT=9090
 make dry-run CONFIG=data/config.toml
 make docker-build IMAGE=fanout-live TAG=dev
+make docker-up FANOUT_LIVE_TAG=0.1.0
 ```
 
 The web UI is the preferred way to edit configuration. The persisted config is

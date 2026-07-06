@@ -1,6 +1,6 @@
 # Fanout Live
 
-[![CI](https://github.com/jlips24/fanout-live/actions/workflows/ci.yml/badge.svg)](https://github.com/jlips24/fanout-live/actions/workflows/ci.yml)
+[![CI](https://github.com/jlips24/fanout-live/actions/workflows/ci.yml/badge.svg)](https://github.com/jlips24/fanout-live/actions/workflows/ci.yml) [![Release](https://github.com/jlips24/fanout-live/actions/workflows/release.yml/badge.svg)](https://github.com/jlips24/fanout-live/actions/workflows/release.yml)
 
 Self-hosted live stream relay for homelabs. Send one OBS stream to Fanout Live,
 then route it to Twitch, YouTube, recordings, or custom RTMP destinations from a

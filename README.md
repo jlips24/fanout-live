@@ -167,6 +167,11 @@ VPN, or reverse proxy with authentication before exposing it outside your
 homelab. A VPN such as Tailscale is a good next step before putting the
 dashboard on the open internet.
 
+## License
+
+Fanout Live is licensed under the GNU Affero General Public License v3.0 only.
+See [LICENSE](LICENSE) for details.
+
 ## Development
 
 For local development, install Python 3.11 or newer and FFmpeg with RTMP

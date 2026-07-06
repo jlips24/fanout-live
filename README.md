@@ -101,6 +101,7 @@ services:
 
 The web UI can:
 
+- Enable or disable its login screen from Settings
 - Show whether the relay is stopped, waiting, or receiving input
 - Show configured pipelines on the main dashboard
 - Enable, disable, and edit pipelines
@@ -162,10 +163,13 @@ The RTMP listener accepts a fixed path and stream key from the config file. Keep
 the stream key private, and avoid exposing port `1935` broadly unless you trust
 the network path.
 
-The web UI currently has no authentication, so bind it to a private network,
-VPN, or reverse proxy with authentication before exposing it outside your
-homelab. A VPN such as Tailscale is a good next step before putting the
-dashboard on the open internet.
+The web UI has optional login protection. Open Settings, choose Security, then
+turn on Web login and set a username and password. The password is stored as a
+hash next to the persisted config volume, not as plain text.
+
+Even with the built-in login enabled, bind the UI to a private network, VPN, or
+trusted reverse proxy before exposing it outside your homelab. A VPN such as
+Tailscale is a good next step before putting the dashboard on the open internet.
 
 ## License
 

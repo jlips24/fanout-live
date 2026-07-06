@@ -33,11 +33,11 @@ transcode pipelines need more CPU/GPU depending on codec and resolution.
 
 ## Quick Start
 
-Build and start Fanout Live with Docker Compose:
+Start a released Fanout Live image with Docker Compose:
 
 ```bash
 mkdir -p data
-docker compose up -d --build
+FANOUT_LIVE_TAG=0.1.0 docker compose up -d
 ```
 
 Then open:
@@ -87,7 +87,7 @@ For a published image, the intended deployment shape is:
 ```yaml
 services:
   fanout-live:
-    image: ghcr.io/YOUR_GITHUB_USERNAME/fanout-live:latest
+    image: ghcr.io/YOUR_GITHUB_USERNAME/fanout-live:${FANOUT_LIVE_TAG:?Set FANOUT_LIVE_TAG to a released version}
     container_name: fanout-live
     restart: unless-stopped
     ports:

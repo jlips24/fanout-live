@@ -81,7 +81,7 @@ docker-run: ## Run the Docker image directly, using ./data for config persistenc
 
 .PHONY: compose-config
 compose-config: ## Validate docker-compose.yml.
-	$(COMPOSE) config
+	FANOUT_LIVE_TAG=ci $(COMPOSE) config
 
 .PHONY: docker-up
 docker-up: ## Build and start the Compose service in the background.

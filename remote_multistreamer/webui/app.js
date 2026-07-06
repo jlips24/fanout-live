@@ -1,4 +1,11 @@
 const fields = {
+  loginScreen: document.querySelector("#login-screen"),
+  loginForm: document.querySelector("#login-form"),
+  loginUsername: document.querySelector("#login-username"),
+  loginPassword: document.querySelector("#login-password"),
+  loginButton: document.querySelector("#login-button"),
+  loginMessage: document.querySelector("#login-message"),
+  appShell: document.querySelector("#app-shell"),
   streamSummary: document.querySelector("#stream-summary"),
   previewFrame: document.querySelector("#preview-frame"),
   previewImage: document.querySelector("#preview-image"),
@@ -16,11 +23,18 @@ const fields = {
   destinations: document.querySelector("#destinations"),
   ffmpegBinary: document.querySelector("#ffmpeg-binary"),
   ffmpegLogLevel: document.querySelector("#ffmpeg-log-level"),
+  authEnabled: document.querySelector("#auth-enabled"),
+  authUsername: document.querySelector("#auth-username"),
+  authPassword: document.querySelector("#auth-password"),
+  authSummary: document.querySelector("#auth-summary"),
+  authMessage: document.querySelector("#auth-message"),
+  saveAuth: document.querySelector("#save-auth"),
   message: document.querySelector("#message"),
   statusDot: document.querySelector("#status-dot"),
   statusText: document.querySelector("#status-text"),
   startButton: document.querySelector("#start-button"),
   stopButton: document.querySelector("#stop-button"),
+  logoutButton: document.querySelector("#logout-button"),
   settingsButton: document.querySelector("#settings-button"),
   settingsDialog: document.querySelector("#settings-dialog"),
   closeSettings: document.querySelector("#close-settings"),
@@ -39,14 +53,21 @@ let previewTimer = null;
 let autosaveTimer = null;
 let autosaveInFlight = false;
 let autosaveQueued = false;
+let statusTimer = null;
+let authEnabled = false;
+let authSettings = null;
 
 async function request(path, options = {}) {
   const response = await fetch(path, {
     headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
     ...options,
   });
   const data = await response.json();
   if (!response.ok) {
+    if (response.status === 401 && data.authRequired) {
+      showLogin();
+    }
     throw new Error(data.error || "Request failed");
   }
   return data;
@@ -64,6 +85,80 @@ function setMessage(text, isError = false, autoClearMs = 0) {
       fields.message.textContent = "";
       messageTimer = null;
     }, autoClearMs);
+  }
+}
+
+function setLoginMessage(text, isError = false) {
+  fields.loginMessage.textContent = text;
+  fields.loginMessage.style.color = isError ? "var(--danger)" : "var(--muted)";
+}
+
+function setAuthMessage(text, isError = false) {
+  fields.authMessage.textContent = text;
+  fields.authMessage.style.color = isError ? "var(--danger)" : "var(--muted)";
+}
+
+function showLogin(username = "admin") {
+  stopStatusRefresh();
+  authEnabled = true;
+  fields.appShell.hidden = true;
+  fields.loginScreen.hidden = false;
+  fields.logoutButton.hidden = true;
+  fields.loginUsername.value = fields.loginUsername.value || username;
+  fields.loginPassword.value = "";
+  document.body.classList.remove("auth-checking");
+  fields.loginUsername.focus();
+}
+
+function showApp() {
+  fields.loginScreen.hidden = true;
+  fields.appShell.hidden = false;
+  fields.logoutButton.hidden = !authEnabled;
+  document.body.classList.remove("auth-checking");
+}
+
+function renderAuthSettings(settings) {
+  authSettings = settings;
+  authEnabled = settings.enabled;
+  fields.authEnabled.checked = settings.enabled;
+  fields.authUsername.value = settings.username || "admin";
+  fields.authPassword.value = "";
+  fields.authSummary.textContent = settings.enabled
+    ? `Login is on for ${settings.username}.`
+    : "Login is off.";
+  fields.authPassword.placeholder = settings.passwordSet ? "Leave blank to keep current password" : "";
+  fields.logoutButton.hidden = !settings.enabled;
+}
+
+async function loadAuthSettings() {
+  const settings = await request("/api/auth/settings");
+  renderAuthSettings(settings);
+  return settings;
+}
+
+async function saveAuthSettings() {
+  const enabled = fields.authEnabled.checked;
+  const username = fields.authUsername.value;
+  const password = fields.authPassword.value;
+  if (enabled && !password && !authSettings?.passwordSet) {
+    setAuthMessage("Set a password before enabling login.", true);
+    fields.authPassword.focus();
+    return;
+  }
+  fields.saveAuth.disabled = true;
+  setAuthMessage("Saving login settings...");
+  try {
+    const settings = await request("/api/auth/settings", {
+      method: "PUT",
+      body: JSON.stringify({ enabled, username, password }),
+    });
+    renderAuthSettings(settings);
+    setAuthMessage(settings.enabled ? "Login saved." : "Login disabled.", false);
+    setMessage(settings.enabled ? "Login protection is on." : "Login protection is off.", false, 2200);
+  } catch (error) {
+    setAuthMessage(error.message, true);
+  } finally {
+    fields.saveAuth.disabled = false;
   }
 }
 
@@ -376,6 +471,23 @@ async function refreshStatus() {
   }
 }
 
+function startStatusRefresh() {
+  if (!statusTimer) {
+    statusTimer = setInterval(refreshStatus, 5000);
+  }
+}
+
+function stopStatusRefresh() {
+  if (statusTimer) {
+    clearInterval(statusTimer);
+    statusTimer = null;
+  }
+  if (previewTimer) {
+    clearInterval(previewTimer);
+    previewTimer = null;
+  }
+}
+
 function updateControlButtons(running) {
   fields.startButton.disabled = running;
   fields.stopButton.disabled = !running;
@@ -557,15 +669,74 @@ function makeId(prefix) {
 
 async function init() {
   try {
+    const auth = await request("/api/auth/status");
+    authEnabled = auth.enabled;
+    if (auth.enabled && !auth.authenticated) {
+      showLogin(auth.username || "admin");
+      return;
+    }
+    showApp();
+    await loadAuthSettings();
     renderConfig(await request("/api/config"));
     await refreshStatus();
+    startStatusRefresh();
     setMessage("Ready.");
   } catch (error) {
-    setMessage(error.message, true);
+    if (fields.appShell.hidden) {
+      setLoginMessage(error.message, true);
+    } else {
+      setMessage(error.message, true);
+    }
   }
 }
 
-fields.settingsButton.addEventListener("click", () => fields.settingsDialog.showModal());
+fields.loginForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  fields.loginButton.disabled = true;
+  setLoginMessage("Signing in...");
+  try {
+    const auth = await request("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({
+        username: fields.loginUsername.value,
+        password: fields.loginPassword.value,
+      }),
+    });
+    authEnabled = auth.enabled;
+    setLoginMessage("");
+    fields.loginPassword.value = "";
+    showApp();
+    await loadAuthSettings();
+    renderConfig(await request("/api/config"));
+    await refreshStatus();
+    startStatusRefresh();
+    setMessage("Signed in.", false, 1800);
+  } catch (error) {
+    setLoginMessage(error.message, true);
+  } finally {
+    fields.loginButton.disabled = false;
+  }
+});
+
+fields.logoutButton.addEventListener("click", async () => {
+  try {
+    await request("/api/auth/logout", { method: "POST" });
+  } catch (_error) {
+    // The local session is cleared either way from the user's perspective.
+  }
+  showLogin(fields.loginUsername.value || "admin");
+  setLoginMessage("Signed out.");
+});
+fields.saveAuth.addEventListener("click", () => saveAuthSettings());
+
+fields.settingsButton.addEventListener("click", async () => {
+  fields.settingsDialog.showModal();
+  try {
+    await loadAuthSettings();
+  } catch (error) {
+    setMessage(error.message, true);
+  }
+});
 fields.closeSettings.addEventListener("click", () => fields.settingsDialog.close());
 fields.addPipeline.addEventListener("click", () => {
   addPipelineRow();
@@ -607,5 +778,4 @@ for (const element of [
   element.addEventListener("change", () => scheduleAutosave());
 }
 
-setInterval(refreshStatus, 5000);
 init();

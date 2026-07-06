@@ -6,8 +6,27 @@
     <title>Remote Multi-Streamer</title>
     <link rel="stylesheet" href="/styles.css?v=20260704">
   </head>
-  <body>
-    <main class="shell">
+  <body class="auth-checking">
+    <section id="login-screen" class="login-screen" hidden>
+      <form id="login-form" class="login-panel">
+        <div>
+          <h1>Fanout Live</h1>
+          <p id="login-subtitle">Sign in to manage the relay.</p>
+        </div>
+        <label>
+          Username
+          <input id="login-username" autocomplete="username" required>
+        </label>
+        <label>
+          Password
+          <input id="login-password" autocomplete="current-password" type="password" required>
+        </label>
+        <button id="login-button" type="submit">Sign in</button>
+        <p id="login-message" class="login-message" role="status"></p>
+      </form>
+    </section>
+
+    <main id="app-shell" class="shell" hidden>
       <header class="topbar">
         <div>
           <h1>Remote Multi-Streamer</h1>
@@ -16,6 +35,7 @@
         <div class="actions" aria-label="Relay controls">
           <span id="message" class="message-inline"></span>
           <span class="status-pill"><span class="status-dot" id="status-dot"></span><span id="status-text">Checking</span></span>
+          <button id="logout-button" class="secondary" type="button" title="Sign out" hidden>Sign out</button>
           <button id="settings-button" class="glyph-button settings-button" type="button" title="Open settings" aria-label="Open settings">⚙</button>
         </div>
       </header>
@@ -87,6 +107,7 @@
           <button class="tab" data-tab="sources" type="button">Sources</button>
           <button class="tab" data-tab="destinations" type="button">Destinations</button>
           <button class="tab" data-tab="engine" type="button">Engine</button>
+          <button class="tab" data-tab="security" type="button">Security</button>
         </nav>
 
         <section class="tab-panel active" id="tab-pipelines">
@@ -130,6 +151,32 @@
                 <option value="debug">debug</option>
               </select>
             </label>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="tab-security">
+          <div class="security-panel">
+            <div class="card-top">
+              <div>
+                <h3>Web login</h3>
+                <p id="auth-summary">Login is off.</p>
+              </div>
+              <label class="switch"><input id="auth-enabled" type="checkbox"><span></span></label>
+            </div>
+            <div class="grid auth-grid">
+              <label>
+                Username
+                <input id="auth-username" autocomplete="username">
+              </label>
+              <label>
+                New password
+                <input id="auth-password" autocomplete="new-password" type="password">
+              </label>
+            </div>
+            <div class="security-actions">
+              <span id="auth-message" class="message-inline"></span>
+              <button id="save-auth" type="button">Save login</button>
+            </div>
           </div>
         </section>
       </form>

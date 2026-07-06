@@ -1,31 +1,39 @@
-# Remote Multi-Streamer
+# Fanout Live
 
-A lightweight RTMP relay for sending one OBS stream to multiple platforms.
+Self-hosted live stream relay for homelabs. Send one OBS stream to Fanout Live,
+then route it to Twitch, YouTube, recordings, or custom RTMP destinations from a
+web UI.
 
-The intended setup is:
+Fanout Live is meant to run as a small Docker appliance on a machine with a good
+upload connection:
 
-1. OBS streams once to a small computer on a faster connection.
-2. This app listens for that RTMP stream.
-3. Pipelines copy or transcode the incoming audio/video to destinations like Twitch and YouTube.
+1. OBS streams once to your Fanout Live host.
+2. Fanout Live listens for that RTMP stream.
+3. Pipelines copy or transcode the incoming audio/video to destinations like
+   Twitch, YouTube, custom RTMP endpoints, and local recordings.
 
-That keeps your home upload usage to one stream while the remote host does the outbound fan-out. Direct-copy pipelines stay very lightweight; transcode pipelines need more CPU/GPU depending on codec and resolution.
+That keeps your OBS-side upload usage to one stream while the Fanout Live host
+does the outbound fan-out. Direct-copy pipelines stay very lightweight;
+transcode pipelines need more CPU/GPU depending on codec and resolution.
+
+## What It Does
+
+- Receives an OBS RTMP stream on port `1935`
+- Provides a browser-based dashboard on port `8080`
+- Routes one source stream to multiple destinations
+- Supports Twitch, YouTube, custom RTMP/RTMPS destinations, and file recordings
+- Stores editable configuration in a persistent `/config` volume
+- Generates and rotates OBS source stream keys from the web UI
 
 ## Requirements
 
-- Python 3.11 or newer
-- FFmpeg with RTMP support
+- Docker or Docker Compose
 - TCP port `1935` reachable from your OBS computer
+- TCP port `8080` reachable from your browser or private network
 
-On Ubuntu/Debian:
+## Quick Start
 
-```bash
-sudo apt update
-sudo apt install ffmpeg python3
-```
-
-## Docker
-
-Build and start the web UI plus RTMP relay controller:
+Build and start Fanout Live with Docker Compose:
 
 ```bash
 mkdir -p data
@@ -38,13 +46,13 @@ Then open:
 http://RELAY_PUBLIC_IP:8080
 ```
 
-The compose setup publishes:
+The Compose setup publishes:
 
 - `8080/tcp` for the web UI
 - `1935/tcp` for OBS RTMP ingest
 
-When the app starts, it also starts the RTMP source listener automatically if a
-source is enabled. Pipelines are not required just to connect OBS.
+When Fanout Live starts, it also starts the RTMP source listener automatically
+if a source is enabled. Pipelines are not required just to connect OBS.
 
 It stores the editable config at:
 
@@ -52,68 +60,51 @@ It stores the editable config at:
 data/config.toml
 ```
 
-OBS settings for the Docker setup are the same:
+Point OBS at Fanout Live:
 
 - Service: `Custom...`
 - Server: `rtmp://RELAY_PUBLIC_IP:1935/live`
 - Stream Key: copy the generated OBS key from the dashboard
 
-You can also run it directly with Docker:
+If OBS and Fanout Live are on the same LAN during testing, use the Fanout Live
+host's local IP instead of the public IP.
+
+## Docker
+
+Build and run the image directly:
 
 ```bash
-docker build -t remote-multistreamer .
+docker build -t fanout-live .
 docker run --rm \
   -p 1935:1935 \
   -p 8080:8080 \
   -v "$PWD/data:/config" \
-  remote-multistreamer
+  fanout-live
 ```
 
-## Make Targets
+For a published image, the intended deployment shape is:
 
-Common workflows are wrapped in `make` targets:
-
-```bash
-make help
-make init
-make deps-dev
-make lint
-make test
-make check
-make run-web
-make docker-up
-make docker-logs
-make docker-down
-```
-
-Useful overrides:
-
-```bash
-make run-web WEB_PORT=9090
-make dry-run CONFIG=data/config.toml
-make docker-build IMAGE=remote-multistreamer TAG=dev
+```yaml
+services:
+  fanout-live:
+    image: ghcr.io/YOUR_GITHUB_USERNAME/fanout-live:latest
+    container_name: fanout-live
+    restart: unless-stopped
+    ports:
+      - "1935:1935"
+      - "8080:8080"
+    volumes:
+      - ./data:/config
 ```
 
 ## Web UI
-
-Start the web app:
-
-```bash
-python3 -m remote_multistreamer --web --config config.toml --web-host 0.0.0.0 --web-port 8080
-```
-
-Then open:
-
-```text
-http://RELAY_PUBLIC_IP:8080
-```
 
 The web UI can:
 
 - Show whether the relay is stopped, waiting, or receiving input
 - Show configured pipelines on the main dashboard
 - Enable, disable, and edit pipelines
-- Configure sources, destinations, and FFmpeg settings in Settings
+- Configure sources, destinations, and FFmpeg settings
 - Add Twitch or YouTube destinations with just a stream key
 - Add custom RTMP/RTMPS destinations with a full URL
 - Add file destinations that record the incoming stream to disk
@@ -129,9 +120,12 @@ A pipeline has:
 - Optional transcodes, such as H.264 at 6000 Kbps
 - A destination, such as Twitch or YouTube
 
-By default, the app starts with one OBS RTMP source and no destinations or pipelines. Add destinations first, then create pipelines that use them.
+By default, Fanout Live starts with one OBS RTMP source and no destinations or
+pipelines. Add destinations first, then create pipelines that use them.
 
-The OBS source stream key is generated automatically, stored in the persistent config file, and can be revealed or copied from the dashboard. Rotate it from Settings if it ever leaks.
+The OBS source stream key is generated automatically, stored in the persistent
+config file, and can be revealed or copied from the dashboard. Rotate it from
+Settings if it ever leaks.
 
 Example pipeline setup:
 
@@ -139,45 +133,17 @@ Example pipeline setup:
 - `Twitch H.264`: transcode to H.264 at 6000 Kbps, then send to a Twitch destination
 - `Local Recording`: copy the incoming stream to a file destination such as `/config/recordings`
 
-File destinations write timestamped Matroska segments. In Docker, `/config/recordings`
-is persisted on the host at `./data/recordings`.
+File destinations write timestamped Matroska segments. In Docker,
+`/config/recordings` is persisted on the host at `./data/recordings`.
 
-Only one active RTMP source is supported per relay process right now, but multiple pipelines can use that same source.
-
-## Manual Configure
-
-Copy the sample config:
-
-```bash
-cp config.example.toml config.toml
-```
-
-For Twitch and YouTube, the web UI can store the stream key directly. If you prefer environment variables in a manually edited config, set them on the relay machine:
-
-```bash
-export TWITCH_STREAM_KEY="live_..."
-export YOUTUBE_STREAM_KEY="xxxx-xxxx-xxxx-xxxx"
-```
-
-Environment variable references such as `${YOUTUBE_STREAM_KEY}` are still supported in saved config files.
-
-## Run
-
-```bash
-python3 -m remote_multistreamer --config config.toml
-```
-
-OBS settings:
-
-- Service: `Custom...`
-- Server: `rtmp://RELAY_PUBLIC_IP:1935/live`
-- Stream Key: copy the generated OBS key from the dashboard
-
-If the relay and OBS are on the same LAN during testing, use the relay computer's local IP instead of the public IP.
+Only one active RTMP source is supported per relay process right now, but
+multiple pipelines can use that same source.
 
 ## Bitrate Notes
 
-This relay does not transcode. If OBS sends 8 Mbps, your home uploads 8 Mbps once. The relay machine uploads about 16 Mbps total for Twitch plus YouTube, plus protocol overhead.
+If OBS sends 8 Mbps, your OBS-side network uploads 8 Mbps once. The Fanout Live
+host uploads about 16 Mbps total for Twitch plus YouTube, plus protocol
+overhead.
 
 Recommended first OBS settings for standard 16:9 streaming:
 
@@ -187,24 +153,42 @@ Recommended first OBS settings for standard 16:9 streaming:
 - Keyframe interval: `2 seconds`
 - Audio: `160 Kbps` or `192 Kbps`
 
-YouTube can accept higher bitrates, but Twitch compatibility usually makes `6000 Kbps` a good first shared setting.
-
-## Install as a Linux Service
-
-Edit `deploy/remote-multistreamer.service` and adjust:
-
-- `WorkingDirectory`
-- `--web-host` if the UI should only bind to a private VPN address
-
-Then:
-
-```bash
-sudo cp deploy/remote-multistreamer.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now remote-multistreamer
-sudo journalctl -u remote-multistreamer -f
-```
+YouTube can accept higher bitrates, but Twitch compatibility usually makes
+`6000 Kbps` a good first shared setting.
 
 ## Security
 
-The RTMP listener accepts a fixed path from `config.toml`. Keep the stream name/key private, and avoid exposing port `1935` broadly unless you trust the network path. The web UI currently has no authentication, so bind it to `127.0.0.1` or a private VPN address unless the machine is already protected. A VPN such as Tailscale is a good next step before putting this on the open internet.
+The RTMP listener accepts a fixed path and stream key from the config file. Keep
+the stream key private, and avoid exposing port `1935` broadly unless you trust
+the network path.
+
+The web UI currently has no authentication, so bind it to a private network,
+VPN, or reverse proxy with authentication before exposing it outside your
+homelab. A VPN such as Tailscale is a good next step before putting the
+dashboard on the open internet.
+
+## Development
+
+For local development, install Python 3.11 or newer and FFmpeg with RTMP
+support. Common workflows are wrapped in `make` targets:
+
+```bash
+make lint
+make test
+make check
+make run-web
+make docker-up
+make docker-logs
+make docker-down
+```
+
+Useful overrides:
+
+```bash
+make run-web WEB_PORT=9090
+make dry-run CONFIG=data/config.toml
+make docker-build IMAGE=fanout-live TAG=dev
+```
+
+The web UI is the preferred way to edit configuration. The persisted config is
+stored at `data/config.toml` when using the default Compose setup.

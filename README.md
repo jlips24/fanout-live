@@ -1,7 +1,7 @@
 # Fanout Live
 
 <p align="center">
-  <img src="remote_multistreamer/webui/assets/logo-512.png" alt="Fanout Live logo" width="160">
+  <img src="remote_multistreamer/webui/assets/readme-hero.png" alt="Fanout Live: restream to multiple platforms with self-hosted simplicity">
 </p>
 
 [![CI](https://github.com/jlips24/fanout-live/actions/workflows/ci.yml/badge.svg)](https://github.com/jlips24/fanout-live/actions/workflows/ci.yml) [![Release](https://github.com/jlips24/fanout-live/actions/workflows/release.yml/badge.svg)](https://github.com/jlips24/fanout-live/actions/workflows/release.yml)

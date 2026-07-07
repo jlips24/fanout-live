@@ -2,6 +2,115 @@
 
 Use this checklist to cut a new Fanout Live release.
 
+## Creating a GitHub Release Candidate
+
+Use this flow when you want a GitHub prerelease such as `v0.1.2-rc.1`
+before cutting the final `v0.1.2` release.
+
+Pushing an RC tag runs the release workflow. The workflow publishes the exact
+RC container tag, but it does not update stable aliases such as `latest` or
+`0.1`.
+
+### 1. Pick the RC Version
+
+Choose the final target version and append an RC suffix:
+
+```text
+v0.1.2-rc.1
+```
+
+Use `rc.2`, `rc.3`, and so on for follow-up candidates for the same target
+release.
+
+If the app version needs to identify the candidate, update
+`pyproject.toml` to the matching Python prerelease version:
+
+```toml
+version = "0.1.2rc1"
+```
+
+Python package versions use `0.1.2rc1`; GitHub tags use `v0.1.2-rc.1`.
+
+### 2. Run Checks
+
+Run the local release checks before creating the candidate:
+
+```bash
+make check
+```
+
+If Docker behavior changed, build an RC image locally for validation:
+
+```bash
+make docker-build IMAGE=ghcr.io/jlips24/fanout-live TAG=0.1.2-rc.1
+```
+
+### 3. Commit the RC Updates
+
+Commit any version or documentation changes:
+
+```bash
+git status
+git add pyproject.toml docs/release.md
+git commit -m "Prepare 0.1.2 rc1"
+git push
+```
+
+Wait for CI to pass on the pushed commit before creating the prerelease.
+
+### 4. Create the GitHub Prerelease
+
+In GitHub:
+
+1. Open the repository's **Releases** page.
+2. Select **Draft a new release**.
+3. Enter `v0.1.2-rc.1` as the tag.
+4. Target the commit that passed CI.
+5. Set the release title to `Fanout Live 0.1.2-rc.1`.
+6. Check **Set as a pre-release**.
+7. Leave **Set as the latest release** unchecked if GitHub shows that option.
+8. Generate release notes, then edit them for RC-specific test notes.
+9. Publish the release.
+
+GitHub creates the tag when the prerelease is published, which starts the
+release workflow.
+
+### 5. Validate the RC
+
+After publishing the prerelease, verify:
+
+- CI passed for the selected commit
+- The GitHub release is marked **Pre-release**
+- The release is not marked **Latest**
+- Release notes include what testers should focus on
+- Any known issues or rollback notes are listed
+
+The release workflow publishes the exact RC image tag. Test that tag directly:
+
+```bash
+docker pull ghcr.io/jlips24/fanout-live:0.1.2-rc.1
+FANOUT_LIVE_TAG=0.1.2-rc.1 docker compose up -d
+docker compose ps
+docker compose logs -f
+docker compose down
+```
+
+### 6. Promote the RC to a Final Release
+
+When the RC is accepted, update `pyproject.toml` from the prerelease version to
+the final version:
+
+```toml
+version = "0.1.2"
+```
+
+Then follow the normal release checklist below using the final tag:
+
+```bash
+git tag -a v0.1.2 -m "Fanout Live 0.1.2"
+git push origin v0.1.2
+```
+
 ## 1. Pick the Version
 
 Choose the next semantic version, for example `0.1.1`.

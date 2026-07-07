@@ -1,7 +1,7 @@
 services:
-  remote-multistreamer:
+  fanout-live:
     image: ghcr.io/jlips24/fanout-live:${FANOUT_LIVE_TAG:?Set FANOUT_LIVE_TAG to a released version}
-    container_name: remote-multistreamer
+    container_name: fanout-live
     restart: unless-stopped
     ports:
       - "1935:1935"

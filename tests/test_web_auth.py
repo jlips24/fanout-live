@@ -6,7 +6,7 @@ from email.message import Message
 from http import HTTPStatus
 from unittest import TestCase
 
-from remote_multistreamer.web import SESSION_COOKIE_NAME, AuthSettings, WebHandler
+from fanout_live.web import SESSION_COOKIE_NAME, AuthSettings, WebHandler
 
 
 class TestableWebHandler(WebHandler):

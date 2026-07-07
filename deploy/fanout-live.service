@@ -1,14 +1,14 @@
 [Unit]
-Description=Remote Multi-Streamer RTMP Relay
+Description=Fanout Live RTMP Relay
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=/opt/remote-multistreamer
+WorkingDirectory=/opt/fanout-live
 Environment=TWITCH_STREAM_KEY=replace-me
 Environment=YOUTUBE_STREAM_KEY=replace-me
-ExecStart=/usr/bin/python3 -m remote_multistreamer --web --config /opt/remote-multistreamer/config.toml --web-host 0.0.0.0 --web-port 8080
+ExecStart=/usr/bin/python3 -m fanout_live --web --config /opt/fanout-live/config.toml --web-host 0.0.0.0 --web-port 8080
 Restart=always
 RestartSec=3
 

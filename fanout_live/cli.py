@@ -7,14 +7,14 @@ import sys
 from pathlib import Path
 
 from .config import ConfigError, load_config
-from .config_store import ensure_config_file
-from .ffmpeg import build_ffmpeg_command, prepare_file_destinations, redact_command
+from .config.store import ensure_config_file
+from .relay.ffmpeg import build_ffmpeg_command, prepare_file_destinations, redact_command
 from .web import run_web_server
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        prog="remote-multistreamer",
+        prog="fanout-live",
         description="Accept one RTMP stream and rebroadcast it to configured RTMP destinations.",
     )
     parser.add_argument(

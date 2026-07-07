@@ -8,7 +8,7 @@ import time
 import unittest
 from pathlib import Path
 
-from remote_multistreamer.web import RelayController
+from fanout_live.web import RelayController
 
 FFMPEG = shutil.which("ffmpeg")
 

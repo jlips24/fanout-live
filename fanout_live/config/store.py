@@ -5,7 +5,7 @@ import tomllib
 from pathlib import Path
 from typing import Any
 
-from .config import ConfigError, parse_config
+from . import ConfigError, parse_config
 
 DEFAULT_CONFIG: dict[str, Any] = {
     "sources": [

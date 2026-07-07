@@ -40,8 +40,8 @@ jobs:
 
       - name: Lint
         run: |
-          python -m isort --check-only remote_multistreamer tests
-          python -m flake8 remote_multistreamer tests
+          python -m isort --check-only fanout_live tests
+          python -m flake8 fanout_live tests
 
       - name: Run tests with coverage
         run: |
@@ -49,7 +49,7 @@ jobs:
           python -m coverage report
 
       - name: Compile Python sources
-        run: python -m compileall remote_multistreamer tests
+        run: python -m compileall fanout_live tests
 
       - name: Validate Docker Compose config
         run: make compose-config

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .config import (
+from ..config import (
     ConfigError,
     DestinationConfig,
     PipelineConfig,

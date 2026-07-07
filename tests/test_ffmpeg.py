@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
-from remote_multistreamer.config import (
+from fanout_live.config import (
     ConfigError,
     DestinationConfig,
     FfmpegConfig,
@@ -12,7 +12,7 @@ from remote_multistreamer.config import (
     SourceConfig,
     TranscodeConfig,
 )
-from remote_multistreamer.ffmpeg import build_ffmpeg_command, redact_command
+from fanout_live.ffmpeg import build_ffmpeg_command, redact_command
 
 
 class FfmpegTests(unittest.TestCase):

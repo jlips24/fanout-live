@@ -1,4 +1,4 @@
-"""Remote Multi-Streamer package."""
+"""Fanout Live package."""
 
 import tomllib
 from importlib.metadata import PackageNotFoundError, version
@@ -9,7 +9,7 @@ __all__ = ["__version__"]
 
 def _read_version() -> str:
     try:
-        return version("remote-multistreamer")
+        return version("fanout-live")
     except PackageNotFoundError:
         pass
 

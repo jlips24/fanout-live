@@ -1,7 +1,7 @@
 # Fanout Live
 
 <p align="center">
-  <img src="remote_multistreamer/webui/assets/readme-hero.png" alt="Fanout Live: restream to multiple platforms with self-hosted simplicity">
+  <img src="fanout_live/web/static/assets/readme-hero.png" alt="Fanout Live: restream to multiple platforms with self-hosted simplicity">
 </p>
 
 [![CI](https://github.com/jlips24/fanout-live/actions/workflows/ci.yml/badge.svg)](https://github.com/jlips24/fanout-live/actions/workflows/ci.yml) [![Release](https://github.com/jlips24/fanout-live/actions/workflows/release.yml/badge.svg)](https://github.com/jlips24/fanout-live/actions/workflows/release.yml)
@@ -94,9 +94,9 @@ For a published image, the intended deployment shape is:
 
 ```yaml
 services:
-  remote-multistreamer:
+  fanout-live:
     image: ghcr.io/jlips24/fanout-live:${FANOUT_LIVE_TAG:?Set FANOUT_LIVE_TAG to a released version}
-    container_name: remote-multistreamer
+    container_name: fanout-live
     restart: unless-stopped
     ports:
       - "1935:1935"

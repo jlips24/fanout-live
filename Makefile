@@ -9,7 +9,7 @@ CONFIG ?= config.toml
 DATA_DIR ?= data
 WEB_HOST ?= 0.0.0.0
 WEB_PORT ?= 8080
-IMAGE ?= remote-multistreamer
+IMAGE ?= fanout-live
 TAG ?= local
 VERSION ?= $(shell $(SYSTEM_PYTHON) -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')
 FANOUT_LIVE_TAG ?= $(VERSION)
@@ -19,7 +19,7 @@ COMPOSE ?= docker compose
 
 .PHONY: help
 help: ## Show available make targets.
-	@awk 'BEGIN {FS = ":.*## "; printf "\nRemote Multi-Streamer targets:\n\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*## "; printf "\nFanout Live targets:\n\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 .PHONY: venv
 venv: ## Create the local Python virtual environment.
@@ -27,7 +27,7 @@ venv: ## Create the local Python virtual environment.
 
 .PHONY: init
 init: venv ## Create/persist a local config with a generated OBS key.
-	$(PYTHON) -m remote_multistreamer --config "$(CONFIG)" --init-config
+	$(PYTHON) -m fanout_live --config "$(CONFIG)" --init-config
 
 .PHONY: test
 test: venv ## Run unit tests.
@@ -47,12 +47,12 @@ $(DEV_DEPS_STAMP): requirements-dev.txt | venv
 
 .PHONY: lint
 lint: deps-dev ## Run isort and flake8 checks.
-	$(PYTHON) -m isort --check-only remote_multistreamer tests
-	$(PYTHON) -m flake8 remote_multistreamer tests
+	$(PYTHON) -m isort --check-only fanout_live tests
+	$(PYTHON) -m flake8 fanout_live tests
 
 .PHONY: compile
 compile: venv ## Compile Python files to catch syntax errors.
-	$(PYTHON) -m compileall remote_multistreamer tests
+	$(PYTHON) -m compileall fanout_live tests
 
 .PHONY: check
 check: lint test compile compose-config ## Run all fast local checks.
@@ -62,15 +62,15 @@ build: compile ## Build/check the local Python application.
 
 .PHONY: dry-run
 dry-run: venv ## Print the generated ffmpeg command without starting the relay.
-	$(PYTHON) -m remote_multistreamer --config "$(CONFIG)" --dry-run
+	$(PYTHON) -m fanout_live --config "$(CONFIG)" --dry-run
 
 .PHONY: run
 run: venv ## Run the relay directly from the local config.
-	$(PYTHON) -m remote_multistreamer --config "$(CONFIG)"
+	$(PYTHON) -m fanout_live --config "$(CONFIG)"
 
 .PHONY: run-web
 run-web: venv ## Run the web UI locally.
-	$(PYTHON) -m remote_multistreamer --web --config "$(CONFIG)" --web-host "$(WEB_HOST)" --web-port "$(WEB_PORT)"
+	$(PYTHON) -m fanout_live --web --config "$(CONFIG)" --web-host "$(WEB_HOST)" --web-port "$(WEB_PORT)"
 
 .PHONY: docker-build
 docker-build: ## Build the Docker image.
@@ -107,4 +107,4 @@ docker-ps: ## Show Compose service status.
 
 .PHONY: docker-shell
 docker-shell: ## Open a shell in the running Compose service container.
-	FANOUT_LIVE_TAG="$(FANOUT_LIVE_TAG)" $(COMPOSE) exec remote-multistreamer /bin/sh
+	FANOUT_LIVE_TAG="$(FANOUT_LIVE_TAG)" $(COMPOSE) exec fanout-live /bin/sh

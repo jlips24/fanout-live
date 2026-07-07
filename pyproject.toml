@@ -1,21 +1,21 @@
 [project]
-name = "remote-multistreamer"
+name = "fanout-live"
 version = "0.1.1"
 description = "Lightweight RTMP relay for rebroadcasting one OBS stream to multiple platforms."
 requires-python = ">=3.11"
 license = "AGPL-3.0-only"
 
 [project.scripts]
-remote-multistreamer = "remote_multistreamer.cli:main"
+fanout-live = "fanout_live.cli:main"
 
 [tool.isort]
 profile = "black"
 line_length = 100
-known_first_party = ["remote_multistreamer"]
+known_first_party = ["fanout_live"]
 
 [tool.coverage.run]
 branch = true
-source = ["remote_multistreamer"]
+source = ["fanout_live"]
 
 [tool.coverage.report]
 show_missing = true

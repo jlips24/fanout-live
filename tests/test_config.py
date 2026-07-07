@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from remote_multistreamer.config import ConfigError, load_config
+from fanout_live.config import ConfigError, load_config
 
 
 class ConfigTests(unittest.TestCase):
@@ -171,7 +171,7 @@ destination = "twitch"
                 load_config(config_path)
 
     def test_default_edit_config_has_no_destinations_or_pipelines(self):
-        from remote_multistreamer.config_store import load_raw_config
+        from fanout_live.config_store import load_raw_config
 
         with tempfile.TemporaryDirectory() as tmpdir:
             config = load_raw_config(Path(tmpdir) / "missing.toml")
@@ -181,7 +181,7 @@ destination = "twitch"
             self.assertRegex(config["sources"][0]["stream"], r"^rms_")
 
     def test_ensure_config_file_persists_generated_stream_key(self):
-        from remote_multistreamer.config_store import ensure_config_file
+        from fanout_live.config_store import ensure_config_file
 
         with tempfile.TemporaryDirectory() as tmpdir:
             config_path = Path(tmpdir) / "config.toml"
@@ -192,7 +192,7 @@ destination = "twitch"
             self.assertEqual(first["sources"][0]["stream"], second["sources"][0]["stream"])
 
     def test_rotate_source_stream_key_persists_new_value(self):
-        from remote_multistreamer.config_store import ensure_config_file, rotate_source_stream_key
+        from fanout_live.config_store import ensure_config_file, rotate_source_stream_key
 
         with tempfile.TemporaryDirectory() as tmpdir:
             config_path = Path(tmpdir) / "config.toml"
@@ -204,7 +204,7 @@ destination = "twitch"
             self.assertRegex(after, r"^rms_")
 
     def test_pipeline_ids_survive_source_and_destination_renames(self):
-        from remote_multistreamer.config_store import save_raw_config
+        from fanout_live.config_store import save_raw_config
 
         with tempfile.TemporaryDirectory() as tmpdir:
             config_path = Path(tmpdir) / "config.toml"
@@ -249,7 +249,7 @@ destination = "twitch"
             )
 
     def test_known_destination_can_be_saved_with_stream_key_only(self):
-        from remote_multistreamer.config_store import save_raw_config
+        from fanout_live.config_store import save_raw_config
 
         with tempfile.TemporaryDirectory() as tmpdir:
             config_path = Path(tmpdir) / "config.toml"
@@ -275,7 +275,7 @@ destination = "twitch"
             self.assertEqual(saved["destinations"][0]["stream_key"], "abc-def")
 
     def test_file_destination_can_be_saved_with_recording_path(self):
-        from remote_multistreamer.config_store import save_raw_config
+        from fanout_live.config_store import save_raw_config
 
         with tempfile.TemporaryDirectory() as tmpdir:
             config_path = Path(tmpdir) / "config.toml"

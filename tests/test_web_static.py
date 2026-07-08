@@ -3,7 +3,6 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
-
 STATIC_DIR = Path(__file__).resolve().parents[1] / "fanout_live" / "web" / "static"
 
 

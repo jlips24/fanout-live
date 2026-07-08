@@ -12,7 +12,7 @@ from fanout_live.config import (
     SourceConfig,
     TranscodeConfig,
 )
-from fanout_live.ffmpeg import build_ffmpeg_command, redact_command
+from fanout_live.ffmpeg import build_ffmpeg_command, redact_command, redact_text
 
 
 class FfmpegTests(unittest.TestCase):
@@ -99,6 +99,12 @@ class FfmpegTests(unittest.TestCase):
                 "rtmp://0.0.0.0:1935/live/***",
                 "rtmp://live.twitch.tv/app/***",
             ],
+        )
+
+    def test_redact_text_hides_stream_keys_in_ffmpeg_output(self):
+        self.assertEqual(
+            redact_text("Failed to open rtmp://live.twitch.tv/app/secret-key"),
+            "Failed to open rtmp://live.twitch.tv/app/***",
         )
 
     def test_disabled_source_cannot_build_command(self):

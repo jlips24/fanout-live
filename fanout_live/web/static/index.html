@@ -58,9 +58,9 @@
         </div>
         <aside class="side-panel">
           <div class="control-group relay-control" aria-label="Relay controls">
-            <span class="control-label">Relay</span>
-            <span class="control-detail">Starts/stops RTMP ingest and all enabled pipelines together.</span>
-            <div class="control-buttons">
+            <span class="control-label">Ingest</span>
+            <span class="control-detail">Always ready. Output starts when the source begins publishing.</span>
+            <div class="control-buttons" hidden>
               <button id="stop-button" class="secondary" type="button" title="Stop relay">Stop</button>
               <button id="start-button" type="button" title="Start relay">Start</button>
             </div>
@@ -78,6 +78,15 @@
                     <button id="toggle-source-key" class="glyph-button" type="button" title="Reveal stream key" aria-label="Reveal stream key">◉</button>
                     <button id="copy-source-key" class="glyph-button" type="button" title="Copy stream key" aria-label="Copy stream key">⧉</button>
                   </span>
+                </dd>
+              </div>
+              <div>
+                <dt>Bitrate</dt>
+                <dd>
+                  <div class="bitrate-widget">
+                    <span id="source-bitrate" class="bitrate-value">0 kbps</span>
+                    <svg id="source-bitrate-graph" class="bitrate-graph" viewBox="0 0 180 42" role="img" aria-label="Source bitrate graph"></svg>
+                  </div>
                 </dd>
               </div>
             </dl>

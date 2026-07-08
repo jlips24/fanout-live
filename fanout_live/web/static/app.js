@@ -15,6 +15,8 @@ const fields = {
   sourceName: document.querySelector("#source-name"),
   sourceUrl: document.querySelector("#source-url"),
   sourceKey: document.querySelector("#source-key"),
+  sourceBitrate: document.querySelector("#source-bitrate"),
+  sourceBitrateGraph: document.querySelector("#source-bitrate-graph"),
   toggleSourceKey: document.querySelector("#toggle-source-key"),
   copySourceKey: document.querySelector("#copy-source-key"),
   pipelineList: document.querySelector("#pipeline-list"),
@@ -47,6 +49,10 @@ const fields = {
   destinationTemplate: document.querySelector("#destination-template"),
 };
 
+const APP_BUILD_ID = "bitrate-kbps-30s-v2";
+const BITRATE_GRAPH_SECONDS = 30;
+const BITRATE_GRAPH_POINTS = 30;
+
 let config = null;
 let messageTimer = null;
 let previewTimer = null;
@@ -56,6 +62,7 @@ let autosaveQueued = false;
 let statusTimer = null;
 let authEnabled = false;
 let authSettings = null;
+let lastStatus = null;
 
 async function request(path, options = {}) {
   const response = await fetch(path, {
@@ -166,7 +173,7 @@ function renderConfig(nextConfig) {
   config = nextConfig;
   fields.ffmpegBinary.value = config.ffmpeg.binary;
   fields.ffmpegLogLevel.value = config.ffmpeg.log_level;
-  renderPipelineDashboard();
+  renderPipelineDashboard(lastStatus);
   renderSettings();
   renderSourceSummary();
 }
@@ -177,15 +184,19 @@ function renderSourceSummary() {
     fields.sourceName.textContent = "-";
     fields.sourceUrl.textContent = "-";
     fields.sourceKey.value = "";
+    fields.sourceBitrate.textContent = "0 kbps";
+    renderBitrateGraph(fields.sourceBitrateGraph, []);
     return;
   }
   const host = source.host === "0.0.0.0" ? "RELAY_PUBLIC_IP" : source.host;
   fields.sourceName.textContent = source.name;
   fields.sourceUrl.textContent = `rtmp://${host}:${source.port}/${source.app}`;
   fields.sourceKey.value = source.stream;
+  fields.sourceBitrate.textContent = "0 kbps";
+  renderBitrateGraph(fields.sourceBitrateGraph, []);
 }
 
-function renderPipelineDashboard() {
+function renderPipelineDashboard(status = null) {
   fields.pipelineList.replaceChildren();
   if (!config.pipelines.length) {
     const empty = document.createElement("p");
@@ -194,7 +205,9 @@ function renderPipelineDashboard() {
     fields.pipelineList.append(empty);
     return;
   }
+  const pipelineStatuses = new Map((status?.pipelines || []).map((pipeline) => [pipeline.name, pipeline]));
   for (const pipeline of config.pipelines) {
+    const pipelineStatus = pipelineStatuses.get(pipeline.name);
     const source = sourceById(pipeline.source_id || pipeline.source);
     const destination = destinationById(pipeline.destination_id || pipeline.destination);
     const sourceName = source?.name || pipeline.source_id || pipeline.source || "";
@@ -203,9 +216,14 @@ function renderPipelineDashboard() {
     article.className = "pipeline-row";
     const transcode = pipeline.transcodes[0];
     article.innerHTML = `
-      <div>
-        <strong></strong>
-        <span></span>
+      <div class="pipeline-main">
+        <div class="pipeline-title-row">
+          <span class="live-dot"></span>
+          <strong></strong>
+          <span class="pipeline-bitrate"></span>
+        </div>
+        <span class="pipeline-route"></span>
+        <svg class="bitrate-graph pipeline-graph" viewBox="0 0 180 42" role="img" aria-label="Pipeline bitrate graph"></svg>
       </div>
       <div class="row-actions">
         <label class="switch"><input type="checkbox" class="dashboard-pipeline-enabled"><span></span></label>
@@ -213,9 +231,12 @@ function renderPipelineDashboard() {
       </div>
     `;
     article.querySelector("strong").textContent = pipeline.name;
-    article.querySelector("span").textContent = transcode
+    article.querySelector(".pipeline-route").textContent = transcode
       ? `${sourceName} -> ${transcode.codec.toUpperCase()} ${transcode.video_bitrate_kbps} kbps -> ${destinationName}`
       : `${sourceName} -> direct copy -> ${destinationName}`;
+    article.querySelector(".live-dot").classList.toggle("live", Boolean(pipelineStatus?.live));
+    article.querySelector(".pipeline-bitrate").textContent = formatBitrate(pipelineStatus?.bitrateKbps || 0);
+    renderBitrateGraph(article.querySelector(".pipeline-graph"), pipelineStatus?.bitrateHistory || []);
     article.querySelector(".dashboard-pipeline-enabled").checked = pipeline.enabled;
     article.querySelector(".dashboard-pipeline-enabled").addEventListener("change", (event) => {
       pipeline.enabled = event.target.checked;
@@ -377,7 +398,7 @@ async function saveConfig({ render = true, showMessage = true } = {}) {
     } else {
       config = saved;
       syncSettingsFromConfig();
-      renderPipelineDashboard();
+      renderPipelineDashboard(lastStatus);
       renderSourceSummary();
     }
     if (showMessage) {
@@ -448,21 +469,34 @@ function syncSettingsFromConfig() {
 async function refreshStatus() {
   try {
     const status = await request("/api/status");
-    fields.statusDot.classList.toggle("running", status.running);
+    lastStatus = status;
+    fields.statusDot.classList.toggle("running", status.state === "waiting");
+    fields.statusDot.classList.toggle("live", status.state === "live");
     fields.previewFrame.classList.toggle("live", status.streamIncoming);
-    fields.statusText.textContent = status.running ? `Running, PID ${status.pid}` : "Stopped";
-    fields.streamSummary.textContent = status.running ? "Relay is active and waiting for OBS input." : "Relay is stopped.";
+    fields.statusText.textContent = status.state === "live" ? "Live" : status.ready ? "Ready" : "Needs config";
+    fields.streamSummary.textContent = status.state === "live"
+      ? "Source is connected. Enabled pipelines will receive data as frames arrive."
+      : "RTMP ingest is armed and waiting for a source.";
     updateControlButtons(status.running);
     updatePreview(status);
-    fields.previewTitle.textContent = status.streamIncoming ? "Stream relay active" : "No stream detected";
+    fields.previewTitle.textContent = status.streamIncoming
+      ? "Stream relay active"
+      : status.sourcePublishing
+        ? "Source connected"
+        : "No stream detected";
     fields.previewDetail.textContent = status.streamIncoming
-      ? "Waiting for preview frames."
-      : "Start the relay, then point OBS at the source URL.";
+      ? "Preview frames are updating."
+      : status.sourcePublishing
+        ? "Waiting for preview frames."
+      : "Point OBS at the source URL when you are ready to stream.";
     if (status.source) {
       fields.sourceName.textContent = status.source.name;
       fields.sourceUrl.textContent = status.source.publicUrl;
       fields.sourceKey.value = status.source.stream;
+      fields.sourceBitrate.textContent = formatBitrate(status.source.bitrateKbps || 0);
+      renderBitrateGraph(fields.sourceBitrateGraph, status.source.bitrateHistory || []);
     }
+    renderPipelineDashboard(status);
     if (status.lastError) setMessage(status.lastError, true);
   } catch (error) {
     fields.statusText.textContent = "Unavailable";
@@ -473,7 +507,7 @@ async function refreshStatus() {
 
 function startStatusRefresh() {
   if (!statusTimer) {
-    statusTimer = setInterval(refreshStatus, 5000);
+    statusTimer = setInterval(refreshStatus, 1000);
   }
 }
 
@@ -515,6 +549,73 @@ function updatePreview(status) {
 
 function refreshPreviewImage() {
   fields.previewImage.src = `/preview/preview.jpg?v=${Date.now()}`;
+}
+
+function formatBitrate(kbps) {
+  const value = Number(kbps) || 0;
+  return `${Math.round(value)} kbps`;
+}
+
+function renderBitrateGraph(svg, history) {
+  if (!svg) return;
+  const width = 180;
+  const height = 42;
+  const padding = 3;
+  const nowSeconds = Date.now() / 1000;
+  const windowSeconds = BITRATE_GRAPH_SECONDS;
+  const samples = normalizeBitrateSamples(history, nowSeconds);
+  svg.replaceChildren();
+  if (samples.length < 2) {
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    line.setAttribute("d", `M ${padding} ${height - padding} L ${width - padding} ${height - padding}`);
+    line.setAttribute("class", "bitrate-line muted");
+    svg.append(line);
+    return;
+  }
+
+  const max = Math.max(...samples.map((sample) => sample.bitrateKbps || 0), 1);
+  const points = samples.map((sample, index) => {
+    const x = padding + (index / (samples.length - 1)) * (width - padding * 2);
+    const y = height - padding - ((sample.bitrateKbps || 0) / max) * (height - padding * 2);
+    return [x, y];
+  });
+  const linePath = points.map(([x, y], index) => `${index ? "L" : "M"} ${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
+  const areaPath = `${linePath} L ${width - padding} ${height - padding} L ${padding} ${height - padding} Z`;
+  const area = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  area.setAttribute("d", areaPath);
+  area.setAttribute("class", "bitrate-area");
+  const line = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  line.setAttribute("d", linePath);
+  line.setAttribute("class", "bitrate-line");
+  svg.append(area, line);
+}
+
+function normalizeBitrateSamples(history, nowSeconds) {
+  const oldestTime = nowSeconds - BITRATE_GRAPH_SECONDS;
+  const sortedSamples = (history || [])
+    .map((sample) => ({
+      time: Number(sample.time) || 0,
+      bitrateKbps: Number(sample.bitrateKbps) || 0,
+    }))
+    .filter((sample) => sample.time >= oldestTime && sample.time <= nowSeconds + 1)
+    .sort((left, right) => left.time - right.time);
+
+  const points = [];
+  let sampleIndex = 0;
+  let latestBitrate = 0;
+  for (let index = 0; index < BITRATE_GRAPH_POINTS; index += 1) {
+    const pointTime =
+      oldestTime + (index / (BITRATE_GRAPH_POINTS - 1)) * BITRATE_GRAPH_SECONDS;
+    while (
+      sampleIndex < sortedSamples.length &&
+      sortedSamples[sampleIndex].time <= pointTime
+    ) {
+      latestBitrate = sortedSamples[sampleIndex].bitrateKbps;
+      sampleIndex += 1;
+    }
+    points.push({ time: pointTime, bitrateKbps: latestBitrate });
+  }
+  return points;
 }
 
 async function startRelay(successMessage = "Relay started.") {
@@ -668,6 +769,7 @@ function makeId(prefix) {
 }
 
 async function init() {
+  document.documentElement.dataset.appVersion = APP_BUILD_ID;
   try {
     const auth = await request("/api/auth/status");
     authEnabled = auth.enabled;

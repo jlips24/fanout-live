@@ -15,6 +15,8 @@ class TestableWebHandler(WebHandler):
         self.path = path
         self.headers = Message()
         self.sent_json = None
+        self.client_address = ("127.0.0.1", 12345)
+        self.relay_controller = FakeRelayController()
 
     def _send_json(self, payload, status=HTTPStatus.OK, *, cookies=None):
         self.sent_json = {
@@ -125,6 +127,22 @@ class WebAuthTest(TestCase):
         self.assertFalse(auth_settings.has_session(session_id))
         self.assertIn("Max-Age=0", handler.sent_json["cookies"][0])
 
+    def test_rtmp_publish_callback_accepts_localhost_form_post(self) -> None:
+        handler = self.rtmp_callback_handler({"app": "live", "name": "stream"})
+
+        handler._handle_rtmp_publish()
+
+        self.assertEqual(handler.sent_json["status"], HTTPStatus.OK)
+        self.assertEqual(handler.relay_controller.published, ("live", "stream"))
+
+    def test_rtmp_publish_callback_rejects_remote_clients(self) -> None:
+        handler = self.rtmp_callback_handler({"app": "live", "name": "stream"})
+        handler.client_address = ("203.0.113.10", 12345)
+
+        handler._handle_rtmp_publish()
+
+        self.assertEqual(handler.sent_json["status"], HTTPStatus.FORBIDDEN)
+
     def enabled_auth(self) -> AuthSettings:
         auth_settings = AuthSettings()
         auth_settings.update(enabled=True, username="admin", password="secret")
@@ -143,3 +161,19 @@ class WebAuthTest(TestCase):
         handler.headers["Content-Length"] = str(len(body))
         handler.rfile = io.BytesIO(body)
         return handler
+
+    def rtmp_callback_handler(self, payload: dict[str, str]) -> TestableWebHandler:
+        body = "&".join(f"{key}={value}" for key, value in payload.items()).encode("utf-8")
+        handler = TestableWebHandler(AuthSettings(), "/api/rtmp/publish")
+        handler.headers["Content-Length"] = str(len(body))
+        handler.rfile = io.BytesIO(body)
+        return handler
+
+
+class FakeRelayController:
+    def __init__(self) -> None:
+        self.published = None
+
+    def publish(self, *, app: str, stream: str) -> dict[str, str]:
+        self.published = (app, stream)
+        return {"state": "live"}

@@ -168,6 +168,33 @@ class FfmpegTests(unittest.TestCase):
         self.assertIn("rtmp://0.0.0.0:1935/live/stream", command)
         self.assertEqual(command[-5:], ["-c", "copy", "-f", "null", "-"])
 
+    def test_build_ffmpeg_command_can_pull_from_nginx_ingest(self):
+        config = RelayConfig(
+            ffmpeg=FfmpegConfig(binary="ffmpeg", log_level="warning"),
+            sources=(
+                SourceConfig(
+                    id="obs",
+                    name="obs",
+                    enabled=True,
+                    host="0.0.0.0",
+                    port=1935,
+                    app="live",
+                    stream="stream",
+                ),
+            ),
+            destinations=(),
+            pipelines=(),
+        )
+
+        command = build_ffmpeg_command(
+            config,
+            input_url="rtmp://127.0.0.1:1935/live/stream",
+            listen=False,
+        )
+
+        self.assertNotIn("-listen", command)
+        self.assertIn("rtmp://127.0.0.1:1935/live/stream", command)
+
     def test_build_ffmpeg_command_supports_file_destination(self):
         config = RelayConfig(
             ffmpeg=FfmpegConfig(binary="ffmpeg", log_level="warning"),

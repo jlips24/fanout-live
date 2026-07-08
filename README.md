@@ -14,8 +14,9 @@ Fanout Live is meant to run as a small Docker appliance on a machine with a good
 upload connection:
 
 1. OBS streams once to your Fanout Live host.
-2. Fanout Live listens for that RTMP stream.
-3. Pipelines copy or transcode the incoming audio/video to destinations like
+2. nginx-rtmp keeps the RTMP ingest endpoint ready.
+3. Fanout Live starts output fan-out when that source begins publishing.
+4. Pipelines copy or transcode the incoming audio/video to destinations like
    Twitch, YouTube, custom RTMP endpoints, and local recordings.
 
 That keeps your OBS-side upload usage to one stream while the Fanout Live host
@@ -26,10 +27,12 @@ transcode pipelines need more CPU/GPU depending on codec and resolution.
 
 - Receives an OBS RTMP stream on port `1935`
 - Provides a browser-based dashboard on port `8080`
+- Keeps RTMP ingest always ready through nginx-rtmp
 - Routes one source stream to multiple destinations
 - Supports Twitch, YouTube, custom RTMP/RTMPS destinations, and file recordings
 - Stores editable configuration in a persistent `/config` volume
 - Generates and rotates OBS source stream keys from the web UI
+- Shows live source and pipeline bitrate graphs while streaming
 
 ## Requirements
 
@@ -59,8 +62,10 @@ The Compose setup publishes:
 - `8080/tcp` for the web UI
 - `1935/tcp` for OBS RTMP ingest
 
-When Fanout Live starts, it also starts the RTMP source listener automatically
-if a source is enabled. Pipelines are not required just to connect OBS.
+When Fanout Live starts, nginx-rtmp immediately listens for the RTMP source.
+The FFmpeg fan-out worker starts automatically when OBS begins publishing and
+stops when the source stream ends. Pipelines are not required just to connect
+OBS.
 
 It stores the editable config at:
 
@@ -73,6 +78,10 @@ Point OBS at Fanout Live:
 - Service: `Custom...`
 - Server: `rtmp://RELAY_PUBLIC_IP:1935/live`
 - Stream Key: copy the generated OBS key from the dashboard
+
+The Docker image's nginx-rtmp ingest is configured for the `live` RTMP app.
+Keep the source app set to `live` unless you also provide a matching nginx
+configuration.
 
 If OBS and Fanout Live are on the same LAN during testing, use the Fanout Live
 host's local IP instead of the public IP.
@@ -111,6 +120,8 @@ The web UI can:
 
 - Enable or disable its login screen from Settings
 - Show whether the relay is stopped, waiting, or receiving input
+- Show a pulsing live indicator for healthy active pipelines
+- Show source and pipeline bitrate graphs with the current bitrate
 - Show configured pipelines on the main dashboard
 - Enable, disable, and edit pipelines
 - Configure sources, destinations, and FFmpeg settings
@@ -119,7 +130,7 @@ The web UI can:
 - Add file destinations that record the incoming stream to disk
 - Reveal, copy, and rotate generated OBS source stream keys
 - Save the config file
-- Start and stop the relay process
+- Keep the ingest service ready without manually starting or stopping the relay
 
 ## Pipelines
 
@@ -145,8 +156,8 @@ Example pipeline setup:
 File destinations write timestamped Matroska segments. In Docker,
 `/config/recordings` is persisted on the host at `./data/recordings`.
 
-Only one active RTMP source is supported per relay process right now, but
-multiple pipelines can use that same source.
+Only one active RTMP source is supported at a time, but multiple pipelines can
+use that same source.
 
 ## Bitrate Notes
 

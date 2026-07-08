@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from ..config import (
@@ -12,7 +13,13 @@ from ..config import (
 )
 
 
-def build_ffmpeg_command(config: RelayConfig, *, preview_path: Path | None = None) -> list[str]:
+def build_ffmpeg_command(
+    config: RelayConfig,
+    *,
+    preview_path: Path | None = None,
+    input_url: str | None = None,
+    listen: bool = True,
+) -> list[str]:
     enabled = config.enabled_pipelines
     source = _active_source(config)
 
@@ -21,11 +28,10 @@ def build_ffmpeg_command(config: RelayConfig, *, preview_path: Path | None = Non
         "-hide_banner",
         "-loglevel",
         config.ffmpeg.log_level,
-        "-listen",
-        "1",
-        "-i",
-        source.listen_url,
     ]
+    if listen:
+        command.extend(["-listen", "1"])
+    command.extend(["-i", input_url or source.listen_url])
 
     for pipeline in enabled:
         destination = config.destination_by_id(pipeline.destination_id)
@@ -46,6 +52,10 @@ def build_ffmpeg_command(config: RelayConfig, *, preview_path: Path | None = Non
 
 def redact_command(command: list[str]) -> list[str]:
     return [_redact_arg(arg) for arg in command]
+
+
+def redact_text(text: str) -> str:
+    return re.sub(r"rtmps?://\S+", lambda match: _redact_arg(match.group(0)), text)
 
 
 def prepare_file_destinations(config: RelayConfig) -> None:

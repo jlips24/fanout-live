@@ -289,7 +289,9 @@ class RelayController:
         deadline = time.monotonic() + FANOUT_INPUT_GRACE_SECONDS
         while time.monotonic() < deadline:
             with self.state_lock:
-                still_active = self.active_source_id == source.id and self.active_stream_name == stream
+                still_active = (
+                    self.active_source_id == source.id and self.active_stream_name == stream
+                )
                 stream_incoming = self.stream_incoming
             if not still_active:
                 return True
@@ -475,7 +477,9 @@ class RelayController:
         if not source_ids:
             raise ConfigError("At least one source must be enabled.")
         if len(source_ids) > 1:
-            raise ConfigError("Only one active RTMP source is supported per relay process right now.")
+            raise ConfigError(
+                "Only one active RTMP source is supported per relay process right now."
+            )
 
         source = config.source_by_id(next(iter(source_ids)))
         if not source.enabled:

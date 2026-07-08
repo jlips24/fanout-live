@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from ..config import (
@@ -46,6 +47,10 @@ def build_ffmpeg_command(config: RelayConfig, *, preview_path: Path | None = Non
 
 def redact_command(command: list[str]) -> list[str]:
     return [_redact_arg(arg) for arg in command]
+
+
+def redact_text(text: str) -> str:
+    return re.sub(r"rtmps?://\S+", lambda match: _redact_arg(match.group(0)), text)
 
 
 def prepare_file_destinations(config: RelayConfig) -> None:

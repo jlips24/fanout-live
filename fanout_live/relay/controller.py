@@ -1,24 +1,31 @@
 from __future__ import annotations
 
+from collections import deque
+from datetime import UTC, datetime
 import subprocess
 import threading
 from pathlib import Path
 from typing import Any
 
 from ..config import ConfigError, load_config
-from .ffmpeg import build_ffmpeg_command, prepare_file_destinations, redact_command
+from .ffmpeg import build_ffmpeg_command, prepare_file_destinations, redact_command, redact_text
 
 PREVIEW_FILE_NAME = "preview.jpg"
+RELAY_LOG_FILE_NAME = "relay.log"
+RECENT_LOG_LINES = 40
 
 
 class RelayController:
     def __init__(self, config_path: Path):
         self.config_path = config_path
         self.preview_path = config_path.parent / "preview" / PREVIEW_FILE_NAME
+        self.log_path = config_path.parent / "relay" / RELAY_LOG_FILE_NAME
         self.process: subprocess.Popen[bytes] | None = None
         self.watch_thread: threading.Thread | None = None
         self.last_error: str | None = None
         self.stream_incoming = False
+        self.recent_log_lines: deque[str] = deque(maxlen=RECENT_LOG_LINES)
+        self.log_lock = threading.Lock()
 
     def status(self) -> dict[str, Any]:
         running = self.process is not None and self.process.poll() is None
@@ -28,7 +35,7 @@ class RelayController:
             self.process = None
             self.stream_incoming = False
             if code:
-                self.last_error = f"Relay exited with code {code}."
+                self.last_error = f"Relay exited with code {code}. See relay log: {self.log_path}"
 
         payload = {
             "running": running,
@@ -36,6 +43,8 @@ class RelayController:
             "lastError": self.last_error,
             "streamIncoming": self.stream_incoming,
             "previewUrl": self.preview_url if self.stream_incoming else None,
+            "relayLogPath": str(self.log_path),
+            "recentRelayLog": self._recent_log_lines(),
         }
         try:
             config = load_config(
@@ -82,6 +91,7 @@ class RelayController:
         prepare_file_destinations(config)
         self._prepare_preview()
         command = build_ffmpeg_command(config, preview_path=self.preview_path)
+        self._prepare_log(redact_command(command))
         self.process = subprocess.Popen(
             command,
             stderr=subprocess.PIPE,
@@ -125,10 +135,37 @@ class RelayController:
         try:
             for raw_line in process.stderr:
                 line = raw_line.decode("utf-8", errors="replace")
+                self._append_log_line(line)
                 if "Input #0" in line or "Stream mapping:" in line:
                     self.stream_incoming = True
         finally:
             self._close_process_pipes(process)
+
+    def _prepare_log(self, command: list[str]) -> None:
+        self.log_path.parent.mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.now(UTC).isoformat(timespec="seconds")
+        header = [
+            "",
+            f"=== Relay started at {timestamp} ===",
+            f"Command: {' '.join(command)}",
+        ]
+        with self.log_lock:
+            self.recent_log_lines.clear()
+            with self.log_path.open("a", encoding="utf-8") as log:
+                for line in header:
+                    log.write(f"{line}\n")
+                    self.recent_log_lines.append(line)
+
+    def _append_log_line(self, line: str) -> None:
+        redacted = redact_text(line.rstrip("\n"))
+        with self.log_lock:
+            with self.log_path.open("a", encoding="utf-8") as log:
+                log.write(f"{redacted}\n")
+            self.recent_log_lines.append(redacted)
+
+    def _recent_log_lines(self) -> list[str]:
+        with self.log_lock:
+            return list(self.recent_log_lines)
 
     def _prepare_preview(self) -> None:
         self.preview_path.parent.mkdir(parents=True, exist_ok=True)

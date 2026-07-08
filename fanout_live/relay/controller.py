@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from collections import deque
-from datetime import UTC, datetime
 import subprocess
 import threading
+from collections import deque
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 

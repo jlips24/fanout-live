@@ -329,7 +329,10 @@ destination = "twitch"
                             "panels": [
                                 {
                                     "title": "Twitch chat",
-                                    "url": "https://www.twitch.tv/embed/example/chat?parent=localhost",
+                                    "url": (
+                                        "https://www.twitch.tv/embed/example/chat"
+                                        "?parent=localhost"
+                                    ),
                                     "enabled": False,
                                     "columns": 8,
                                     "rows": 2,

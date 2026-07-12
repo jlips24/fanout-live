@@ -13,6 +13,12 @@ class DeployConfigTests(unittest.TestCase):
         self.assertIn("worker_processes 1;", config)
         self.assertNotIn("worker_processes auto;", config)
 
+    def test_nginx_waits_for_video_keyframe_before_starting_fanout_reader(self) -> None:
+        config = (ROOT / "deploy" / "nginx.conf").read_text(encoding="utf-8")
+
+        self.assertIn("wait_video on;", config)
+        self.assertIn("wait_key on;", config)
+
     def test_deploy_writes_runtime_logs_to_logs_directory(self) -> None:
         nginx_config = (ROOT / "deploy" / "nginx.conf").read_text(encoding="utf-8")
         entrypoint = (ROOT / "deploy" / "entrypoint.sh").read_text(encoding="utf-8")

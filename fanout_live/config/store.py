@@ -196,6 +196,9 @@ def _normalize_pipeline(
     transcodes = raw.get("transcodes", [])
     if not isinstance(transcodes, list):
         raise ConfigError(f"pipelines[{index}].transcodes must be an array.")
+    panels = raw.get("panels", [])
+    if not isinstance(panels, list):
+        raise ConfigError(f"pipelines[{index}].panels must be an array.")
     return {
         "name": _text(raw.get("name", ""), f"pipelines[{index}].name"),
         "enabled": _bool(raw.get("enabled", True), f"pipelines[{index}].enabled"),
@@ -216,6 +219,10 @@ def _normalize_pipeline(
         "transcodes": [
             _normalize_transcode(item, transcode_index)
             for transcode_index, item in enumerate(transcodes, 1)
+        ],
+        "panels": [
+            _normalize_panel(item, panel_index)
+            for panel_index, item in enumerate(panels, 1)
         ],
     }
 
@@ -240,6 +247,22 @@ def _normalize_transcode(raw: Any, index: int) -> dict[str, Any]:
     }
 
 
+def _normalize_panel(raw: Any, index: int) -> dict[str, Any]:
+    if not isinstance(raw, dict):
+        raise ConfigError(f"panels[{index}] must be a table.")
+    url = _text(raw.get("url", ""), f"panels[{index}].url")
+    if not url.startswith(("http://", "https://")):
+        raise ConfigError(f"panels[{index}].url must start with http:// or https://.")
+    return {
+        "title": _text(raw.get("title", "Panel"), f"panels[{index}].title"),
+        "url": url,
+        "enabled": _bool(raw.get("enabled", True), f"panels[{index}].enabled"),
+        "columns": _bounded_int(raw.get("columns", 6), f"panels[{index}].columns", 1, 12),
+        "rows": _bounded_int(raw.get("rows", 4), f"panels[{index}].rows", 1, 6),
+        "order": _bounded_int(raw.get("order", index - 1), f"panels[{index}].order", 0, 10000),
+    }
+
+
 def _copy_default_config() -> dict[str, Any]:
     sources = [dict(source) for source in DEFAULT_CONFIG["sources"]]
     for source in sources:
@@ -253,6 +276,7 @@ def _copy_default_config() -> dict[str, Any]:
             {
                 **pipeline,
                 "transcodes": [dict(transcode) for transcode in pipeline["transcodes"]],
+                "panels": [dict(panel) for panel in pipeline.get("panels", [])],
             }
             for pipeline in DEFAULT_CONFIG["pipelines"]
         ],
@@ -318,6 +342,19 @@ def _to_toml(config: dict[str, Any]) -> str:
                     "",
                 ]
             )
+        for panel in pipeline["panels"]:
+            lines.extend(
+                [
+                    "[[pipelines.panels]]",
+                    f"title = {_toml_string(panel['title'])}",
+                    f"url = {_toml_string(panel['url'])}",
+                    f"enabled = {_toml_bool(panel['enabled'])}",
+                    f"columns = {panel['columns']}",
+                    f"rows = {panel['rows']}",
+                    f"order = {panel['order']}",
+                    "",
+                ]
+            )
 
     return "\n".join(lines)
 
@@ -343,6 +380,12 @@ def _bool(value: Any, label: str) -> bool:
 def _port(value: Any, label: str) -> int:
     if not isinstance(value, int) or value < 1 or value > 65535:
         raise ConfigError(f"{label} must be a number from 1 to 65535.")
+    return value
+
+
+def _bounded_int(value: Any, label: str, minimum: int, maximum: int) -> int:
+    if not isinstance(value, int) or value < minimum or value > maximum:
+        raise ConfigError(f"{label} must be a number from {minimum} to {maximum}.")
     return value
 
 

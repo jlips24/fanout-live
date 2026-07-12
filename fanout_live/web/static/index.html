@@ -6,7 +6,7 @@
     <title>Fanout Live</title>
     <link rel="icon" href="/assets/favicon.ico">
     <link rel="apple-touch-icon" href="/assets/logo-512.png">
-    <link rel="stylesheet" href="/styles.css?v=20260704">
+    <link rel="stylesheet" href="/styles.css?v=20260711-stream-manager-v14">
   </head>
   <body class="auth-checking">
     <section id="login-screen" class="login-screen" hidden>
@@ -46,54 +46,97 @@
         </div>
       </header>
 
-      <section class="hero-grid">
-        <div class="preview-panel">
-          <div class="preview-frame" id="preview-frame">
-            <img id="preview-image" alt="Live source preview" hidden>
-            <div id="preview-placeholder">
-              <strong id="preview-title">No stream detected</strong>
-              <span id="preview-detail">Start the relay, then point OBS at the source URL.</span>
-            </div>
-          </div>
-        </div>
-        <aside class="side-panel">
-          <div class="control-group relay-control" aria-label="Relay controls">
-            <span class="control-label">Relay</span>
-            <span class="control-detail">Starts/stops RTMP ingest and all enabled pipelines together.</span>
-            <div class="control-buttons">
-              <button id="stop-button" class="secondary" type="button" title="Stop relay">Stop</button>
-              <button id="start-button" type="button" title="Start relay">Start</button>
-            </div>
-          </div>
-          <section class="source-panel" aria-label="Source">
-            <h2>Source</h2>
-            <dl>
-              <div><dt>Name</dt><dd id="source-name">-</dd></div>
-              <div><dt>OBS Server</dt><dd id="source-url">-</dd></div>
-              <div>
-                <dt>OBS Key</dt>
-                <dd class="secret-row">
-                  <span class="input-actions">
-                    <input id="source-key" type="password" readonly>
-                    <button id="toggle-source-key" class="glyph-button" type="button" title="Reveal stream key" aria-label="Reveal stream key">◉</button>
-                    <button id="copy-source-key" class="glyph-button" type="button" title="Copy stream key" aria-label="Copy stream key">⧉</button>
-                  </span>
-                </dd>
+      <nav class="view-nav" aria-label="Primary views">
+        <button class="view-tab active" data-page="dashboard" type="button">Dashboard</button>
+        <button class="view-tab" data-page="stream-manager" type="button">Stream Manager</button>
+      </nav>
+
+      <section id="page-dashboard" class="app-page active">
+        <section class="hero-grid">
+          <div class="preview-panel">
+            <div class="preview-frame" id="preview-frame">
+              <img id="preview-image" alt="Live source preview" hidden>
+              <div id="preview-placeholder">
+                <strong id="preview-title">No stream detected</strong>
+                <span id="preview-detail">Start the relay, then point OBS at the source URL.</span>
               </div>
-            </dl>
-          </section>
-        </aside>
+            </div>
+          </div>
+          <aside class="side-panel">
+            <div class="control-group relay-control" aria-label="Relay controls">
+              <span class="control-label">Ingest</span>
+              <span class="control-detail">Always ready. Output starts when the source begins publishing.</span>
+              <div class="control-buttons" hidden>
+                <button id="stop-button" class="secondary" type="button" title="Stop relay">Stop</button>
+                <button id="start-button" type="button" title="Start relay">Start</button>
+              </div>
+            </div>
+            <section class="source-panel" aria-label="Source">
+              <h2>Source</h2>
+              <dl>
+                <div><dt>Name</dt><dd id="source-name">-</dd></div>
+                <div><dt>OBS Server</dt><dd id="source-url">-</dd></div>
+                <div>
+                  <dt>OBS Key</dt>
+                  <dd class="secret-row">
+                    <span class="input-actions">
+                      <input id="source-key" type="password" readonly>
+                      <button id="toggle-source-key" class="glyph-button" type="button" title="Reveal stream key" aria-label="Reveal stream key">◉</button>
+                      <button id="copy-source-key" class="glyph-button" type="button" title="Copy stream key" aria-label="Copy stream key">⧉</button>
+                    </span>
+                  </dd>
+                </div>
+                <div>
+                  <dt>Bitrate</dt>
+                  <dd>
+                    <div class="bitrate-widget">
+                      <span id="source-bitrate" class="bitrate-value">0 kbps</span>
+                      <svg id="source-bitrate-graph" class="bitrate-graph" viewBox="0 0 180 42" role="img" aria-label="Source bitrate graph"></svg>
+                    </div>
+                  </dd>
+                </div>
+              </dl>
+            </section>
+          </aside>
+        </section>
+
+        <section class="band">
+          <div class="section-head">
+            <div>
+              <h2>Pipelines</h2>
+              <p>Status for each configured route.</p>
+            </div>
+            <button id="add-pipeline-main" class="secondary" type="button" title="Add pipeline">Add</button>
+          </div>
+          <div id="pipeline-list" class="pipeline-list"></div>
+        </section>
       </section>
 
-      <section class="band">
-        <div class="section-head">
-          <div>
-            <h2>Pipelines</h2>
-            <p>Routes from an input source through optional transcodes to an output destination.</p>
+      <section id="page-stream-manager" class="app-page" hidden>
+        <section class="manager-preview-shell" id="manager-preview-shell">
+          <div class="manager-preview-toolbar">
+            <div id="manager-pipeline-cards" class="manager-pipeline-cards" aria-label="Pipeline status"></div>
+            <button id="manager-preview-toggle" class="glyph-button manager-preview-toggle" type="button" title="Collapse stream preview" aria-label="Collapse stream preview">▴</button>
           </div>
-          <button id="add-pipeline-main" class="secondary" type="button" title="Add pipeline">Add</button>
-        </div>
-        <div id="pipeline-list" class="pipeline-list"></div>
+          <div class="preview-frame manager-preview" id="manager-preview-frame">
+            <img id="manager-preview-image" alt="Live source preview" hidden>
+            <div id="manager-preview-placeholder">
+              <strong id="manager-preview-title">No stream detected</strong>
+              <span id="manager-preview-detail">Point OBS at the source URL when you are ready to stream.</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="band">
+          <div class="section-head">
+            <div>
+              <h2>Panels</h2>
+              <p>Embeds attached to enabled pipelines.</p>
+            </div>
+            <button id="panel-layout-toggle" class="glyph-button panel-layout-toggle" type="button" title="Edit panel layout" aria-label="Edit panel layout">✎</button>
+          </div>
+          <div id="manager-panels" class="manager-panels"></div>
+        </section>
       </section>
 
     </main>
@@ -204,6 +247,22 @@
           <label class="transcode-field">Audio kbps<input class="pipeline-audio-bitrate" type="number" min="1" max="1024"></label>
           <label class="transcode-field">Preset<input class="pipeline-preset" autocomplete="off" spellcheck="false"></label>
         </div>
+        <div class="panel-settings">
+          <div class="section-head compact-head">
+            <h3>Panels</h3>
+            <button class="secondary add-panel" type="button">Add</button>
+          </div>
+          <div class="panel-list"></div>
+        </div>
+      </article>
+    </template>
+
+    <template id="panel-row-template">
+      <article class="panel-row">
+        <label class="switch"><input class="panel-enabled" type="checkbox"><span></span></label>
+        <label>Title<input class="panel-title" autocomplete="off" spellcheck="false"></label>
+        <label>Embed URL<input class="panel-url" autocomplete="off" spellcheck="false" placeholder="https://..."></label>
+        <button class="icon-button remove-panel" type="button" title="Remove panel">X</button>
       </article>
     </template>
 
@@ -246,6 +305,6 @@
       </article>
     </template>
 
-    <script src="/app.js?v=20260704"></script>
+    <script src="/app.js?v=20260711-stream-manager-v14"></script>
   </body>
 </html>

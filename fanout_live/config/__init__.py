@@ -70,12 +70,23 @@ class TranscodeConfig:
 
 
 @dataclass(frozen=True)
+class PanelConfig:
+    title: str
+    url: str
+    enabled: bool = True
+    columns: int = 6
+    rows: int = 4
+    order: int = 0
+
+
+@dataclass(frozen=True)
 class PipelineConfig:
     name: str
     enabled: bool
     source_id: str
     destination_id: str
     transcodes: tuple[TranscodeConfig, ...]
+    panels: tuple[PanelConfig, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -312,6 +323,9 @@ def _parse_pipelines(
         transcodes = item.get("transcodes", [])
         if not isinstance(transcodes, list):
             raise ConfigError(f"{context}.transcodes must be an array.")
+        panels = item.get("panels", [])
+        if not isinstance(panels, list):
+            raise ConfigError(f"{context}.panels must be an array.")
         pipelines.append(
             PipelineConfig(
                 name=_string(item, "name", context=context),
@@ -334,6 +348,10 @@ def _parse_pipelines(
                     _parse_transcode(transcode, f"{context}.transcodes[{transcode_index}]")
                     for transcode_index, transcode in enumerate(transcodes, 1)
                 ),
+                panels=tuple(
+                    _parse_panel(panel, f"{context}.panels[{panel_index}]")
+                    for panel_index, panel in enumerate(panels, 1)
+                ),
             )
         )
     _validate_unique_names("pipelines", [pipeline.name for pipeline in pipelines])
@@ -352,6 +370,37 @@ def _parse_transcode(raw: dict[str, Any], context: str) -> TranscodeConfig:
         audio_bitrate_kbps=_integer(raw, "audio_bitrate_kbps", default=160, context=context),
         preset=_string(raw, "preset", default="veryfast", context=context),
     )
+
+
+def _parse_panel(raw: dict[str, Any], context: str) -> PanelConfig:
+    if not isinstance(raw, dict):
+        raise ConfigError(f"{context} must be a table.")
+    url = _string(raw, "url", context=context)
+    if not url.startswith(("http://", "https://")):
+        raise ConfigError(f"{context}.url must start with http:// or https://.")
+    return PanelConfig(
+        title=_string(raw, "title", default="Panel", context=context),
+        url=url,
+        enabled=_boolean(raw, "enabled", default=True, context=context),
+        columns=_bounded_integer(raw, "columns", default=6, minimum=1, maximum=12, context=context),
+        rows=_bounded_integer(raw, "rows", default=4, minimum=1, maximum=6, context=context),
+        order=_bounded_integer(raw, "order", default=0, minimum=0, maximum=10000, context=context),
+    )
+
+
+def _bounded_integer(
+    raw: dict[str, Any],
+    key: str,
+    *,
+    default: int,
+    minimum: int,
+    maximum: int,
+    context: str | None = None,
+) -> int:
+    value = raw.get(key, default)
+    if not isinstance(value, int) or value < minimum or value > maximum:
+        raise ConfigError(f"{_label(context, key)} must be a number from {minimum} to {maximum}.")
+    return value
 
 
 def _expand_env(value: str) -> str:

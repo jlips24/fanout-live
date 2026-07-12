@@ -11,6 +11,7 @@ from http.cookies import SimpleCookie
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qs
 
 from ..config import ConfigError
 from ..config.store import (
@@ -165,10 +166,6 @@ def run_web_server(
     ensure_config_file(config_path)
     controller = RelayController(config_path)
     auth_settings = auth_settings or AuthSettings.load(config_path.parent / AUTH_FILE_NAME)
-    try:
-        controller.start()
-    except ConfigError as exc:
-        controller.last_error = str(exc)
 
     auth_config = auth_settings
 
@@ -264,6 +261,12 @@ class WebHandler(SimpleHTTPRequestHandler):
         if self.path == "/api/auth/logout":
             self._handle_logout()
             return
+        if self.path == "/api/rtmp/publish":
+            self._handle_rtmp_publish()
+            return
+        if self.path == "/api/rtmp/publish_done":
+            self._handle_rtmp_publish_done()
+            return
         if not self._is_request_allowed():
             self._send_unauthorized()
             return
@@ -284,6 +287,20 @@ class WebHandler(SimpleHTTPRequestHandler):
             return
 
         self.send_error(HTTPStatus.NOT_FOUND)
+
+    def _handle_rtmp_publish(self) -> None:
+        try:
+            app, stream = self._read_rtmp_callback()
+            self._send_json(self.relay_controller.publish(app=app, stream=stream))
+        except ConfigError as exc:
+            self._send_json({"error": str(exc)}, HTTPStatus.FORBIDDEN)
+
+    def _handle_rtmp_publish_done(self) -> None:
+        try:
+            app, stream = self._read_rtmp_callback()
+            self._send_json(self.relay_controller.publish_done(app=app, stream=stream))
+        except ConfigError as exc:
+            self._send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
 
     def _handle_auth_settings_update(self) -> None:
         was_enabled = self.auth_settings.enabled
@@ -402,6 +419,20 @@ class WebHandler(SimpleHTTPRequestHandler):
             raise ConfigError("Request body must be a JSON object.")
         return payload
 
+    def _read_rtmp_callback(self) -> tuple[str, str]:
+        client_host = self.client_address[0]
+        if client_host not in {"127.0.0.1", "::1"}:
+            raise ConfigError("RTMP callbacks are only accepted from localhost.")
+
+        length = int(self.headers.get("Content-Length", "0"))
+        data = self.rfile.read(length).decode("utf-8")
+        payload = parse_qs(data, keep_blank_values=True)
+        app = _first_form_value(payload, "app")
+        stream = _first_form_value(payload, "name")
+        if not app or not stream:
+            raise ConfigError("RTMP callback is missing app or stream name.")
+        return app, stream
+
     def _send_json(
         self,
         payload: dict[str, Any],
@@ -430,3 +461,8 @@ class WebHandler(SimpleHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+
+def _first_form_value(payload: dict[str, list[str]], key: str) -> str:
+    values = payload.get(key, [])
+    return values[0].strip() if values else ""

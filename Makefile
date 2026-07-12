@@ -14,6 +14,9 @@ TAG ?= local
 VERSION ?= $(shell $(SYSTEM_PYTHON) -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')
 FANOUT_LIVE_TAG ?= $(VERSION)
 COMPOSE ?= docker compose
+DOCKER_TEST_RUN ?= docker run --rm -v "$$(pwd):/app" -w /app "$(IMAGE):$(TAG)"
+UNIT_TEST_MODULES := tests.test_ffmpeg tests.test_config tests.test_deploy_config tests.test_relay_controller tests.test_web_auth tests.test_web_static
+INTEGRATION_TEST_MODULES := tests.test_integration_rtmp
 
 .DEFAULT_GOAL := help
 
@@ -76,8 +79,28 @@ run-web: venv ## Run the web UI locally.
 docker-build: ## Build the Docker image.
 	docker build -t "$(IMAGE):$(TAG)" .
 
+.PHONY: docker-clean-build
+docker-clean-build: ## Build the Docker image without cached layers.
+	docker build --pull --no-cache -t "$(IMAGE):$(TAG)" .
+
+.PHONY: docker-unit-test
+docker-unit-test: docker-build ## Run unit tests inside the Docker image.
+	$(DOCKER_TEST_RUN) python -m unittest $(UNIT_TEST_MODULES)
+
+.PHONY: docker-integration-test
+docker-integration-test: docker-build ## Run integration tests inside the Docker image.
+	$(DOCKER_TEST_RUN) python -m unittest $(INTEGRATION_TEST_MODULES)
+
+.PHONY: docker-test
+docker-test: docker-unit-test docker-integration-test ## Run unit and integration tests inside Docker.
+
 .PHONY: docker-run
 docker-run: ## Run the Docker image directly, using ./data for config persistence.
+	mkdir -p "$(DATA_DIR)"
+	docker run --rm -p 1935:1935 -p 8080:8080 -v "$$(pwd)/$(DATA_DIR):/config" "$(IMAGE):$(TAG)"
+
+.PHONY: docker-clean-run
+docker-clean-run: docker-clean-build ## Build without cached layers, then run the Docker image.
 	mkdir -p "$(DATA_DIR)"
 	docker run --rm -p 1935:1935 -p 8080:8080 -v "$$(pwd)/$(DATA_DIR):/config" "$(IMAGE):$(TAG)"
 

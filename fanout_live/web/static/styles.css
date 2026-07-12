@@ -139,7 +139,39 @@ button.secondary:hover,
 }
 
 .topbar {
+  margin-bottom: 14px;
+}
+
+.view-nav {
+  display: flex;
+  gap: 8px;
   margin-bottom: 22px;
+  border-bottom: 1px solid var(--line);
+}
+
+.view-tab {
+  min-height: 38px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 0 4px;
+}
+
+.view-tab:hover,
+.view-tab.active {
+  background: transparent;
+  border-bottom-color: var(--accent);
+  color: var(--text);
+}
+
+.app-page {
+  display: none;
+}
+
+.app-page.active {
+  display: block;
 }
 
 .brand-lockup {
@@ -301,11 +333,46 @@ dt,
   background: var(--accent-strong);
 }
 
+.status-dot.live,
+.live-dot.live {
+  background: #ff3b30;
+  box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.58);
+  animation: live-pulse 1.5s ease-out infinite;
+}
+
+@keyframes live-pulse {
+  70% {
+    box-shadow: 0 0 0 8px rgba(255, 59, 48, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 59, 48, 0);
+  }
+}
+
 .hero-grid {
   display: grid;
   grid-template-columns: minmax(0, 2.2fr) minmax(280px, 0.8fr);
   gap: 18px;
   margin-bottom: 28px;
+}
+
+.manager-preview-shell {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-strong);
+  margin-bottom: 28px;
+}
+
+.manager-preview-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 58px;
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel-strong);
 }
 
 .side-panel {
@@ -353,6 +420,16 @@ dt,
   color: var(--muted);
 }
 
+.manager-preview {
+  min-height: 300px;
+  border: 0;
+  border-radius: 0;
+}
+
+.manager-preview img {
+  min-height: 300px;
+}
+
 .source-panel {
   padding: 18px;
   border: 1px solid var(--line);
@@ -382,6 +459,202 @@ dd {
   padding: 22px 0 26px;
 }
 
+.manager-pipeline-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.manager-pipeline-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: min(260px, 100%);
+  min-height: 34px;
+  gap: 8px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(24, 27, 31, 0.9);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  backdrop-filter: blur(10px);
+  white-space: nowrap;
+}
+
+.manager-pipeline-chip strong {
+  overflow: hidden;
+  color: var(--text);
+  text-overflow: ellipsis;
+}
+
+.manager-pipeline-chip.live {
+  border-color: rgba(255, 59, 48, 0.58);
+}
+
+.manager-pipeline-chip.paused {
+  opacity: 0.72;
+}
+
+.manager-chip-enabled {
+  color: var(--focus);
+}
+
+.manager-pipeline-chip.paused .manager-chip-enabled,
+.manager-chip-status {
+  color: var(--muted);
+}
+
+.manager-pipeline-chip-empty {
+  color: var(--muted);
+}
+
+.manager-preview-toggle {
+  flex: 0 0 auto;
+  min-height: 34px;
+  border-radius: 999px;
+  background: rgba(24, 27, 31, 0.9);
+  backdrop-filter: blur(10px);
+}
+
+.manager-preview-shell.collapsed {
+  margin-bottom: 28px;
+}
+
+.manager-panels {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-auto-rows: 210px;
+  grid-auto-flow: dense;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.manager-panels.editing {
+  padding-bottom: 260px;
+}
+
+.manager-panel {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-column: span var(--panel-columns, 6);
+  grid-row: span var(--panel-rows, 4);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.manager-panels.editing .manager-panel {
+  outline: 1px dashed rgba(119, 183, 255, 0.38);
+  outline-offset: -5px;
+}
+
+.manager-panel.dragging {
+  opacity: 1;
+  box-shadow: 0 0 0 2px rgba(119, 183, 255, 0.32);
+}
+
+.manager-panel.drag-source-hit-test {
+  pointer-events: none;
+}
+
+.manager-panel.resizing {
+  user-select: none;
+}
+
+.manager-panel header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px 12px 70px;
+  border-bottom: 1px solid var(--line);
+}
+
+.manager-panel-grab {
+  position: absolute;
+  top: 8px;
+  left: 30px;
+  display: none;
+  width: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+  border-color: var(--line);
+  border-radius: 6px;
+  background: rgba(24, 27, 31, 0.88);
+  color: var(--muted);
+  cursor: grab;
+  line-height: 1;
+  touch-action: none;
+}
+
+.manager-panels.editing .manager-panel-grab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.manager-panel.dragging .manager-panel-grab {
+  cursor: grabbing;
+}
+
+.manager-panel a {
+  color: var(--accent-strong);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.manager-panel-body {
+  display: grid;
+  min-height: 0;
+  overflow: hidden;
+  padding-bottom: 10px;
+  background: #050607;
+}
+
+.manager-panel iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border: 0;
+  background: #050607;
+}
+
+.manager-panels.editing .manager-panel iframe {
+  pointer-events: none;
+}
+
+.manager-panel-resize {
+  position: absolute;
+  right: 7px;
+  bottom: 7px;
+  display: none;
+  width: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0;
+  border: 2px solid var(--focus);
+  border-radius: 4px;
+  background: var(--panel-strong);
+  cursor: nwse-resize;
+}
+
+.manager-panels.editing .manager-panel-resize {
+  display: block;
+}
+
+.panel-layout-toggle.dirty {
+  border-color: var(--focus);
+  color: var(--focus);
+}
+
 .pipeline-list,
 .stack {
   display: grid;
@@ -404,6 +677,104 @@ dd {
   margin-bottom: 4px;
 }
 
+.pipeline-main {
+  display: grid;
+  min-width: 0;
+  flex: 1 1 auto;
+  gap: 6px;
+}
+
+.pipeline-title-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 8px;
+}
+
+.pipeline-title-row strong {
+  margin-bottom: 0;
+}
+
+.live-dot {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--line);
+}
+
+.pipeline-bitrate {
+  margin-left: auto;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.pipeline-route {
+  overflow-wrap: anywhere;
+}
+
+.bitrate-widget {
+  display: grid;
+  gap: 6px;
+}
+
+.bitrate-value {
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.bitrate-graph {
+  display: block;
+  width: 100%;
+  height: 42px;
+  overflow: visible;
+}
+
+.pipeline-graph {
+  max-width: 260px;
+}
+
+.bitrate-area {
+  fill: rgba(47, 163, 107, 0.18);
+}
+
+.bitrate-line {
+  fill: none;
+  stroke: var(--accent-strong);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.5;
+}
+
+.bitrate-line.muted {
+  stroke: var(--line);
+}
+
+.mini-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.mini-badge.ready {
+  border-color: rgba(119, 183, 255, 0.52);
+  color: var(--focus);
+}
+
+.mini-badge.live {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
 .empty-state {
   padding: 18px;
   border: 1px dashed var(--line);
@@ -423,6 +794,34 @@ dd {
 
 .pipeline-grid {
   grid-template-columns: repeat(3, minmax(150px, 1fr));
+}
+
+.panel-settings {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.compact-head {
+  gap: 10px;
+}
+
+.panel-list {
+  display: grid;
+  gap: 10px;
+}
+
+.panel-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.7fr) minmax(220px, 1.2fr) minmax(120px, 0.5fr) auto;
+  align-items: end;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
 }
 
 .destination-grid {
@@ -597,7 +996,8 @@ dialog::backdrop {
   .pipeline-grid,
   .destination-grid,
   .engine-grid,
-  .auth-grid {
+  .auth-grid,
+  .panel-row {
     grid-template-columns: 1fr;
   }
 
@@ -608,5 +1008,22 @@ dialog::backdrop {
 
   .preview-frame {
     min-height: 260px;
+  }
+
+  .preview-frame img {
+    min-height: 260px;
+  }
+
+  .manager-preview,
+  .manager-preview img {
+    min-height: 260px;
+  }
+
+  .manager-panels {
+    grid-template-columns: 1fr;
+  }
+
+  .manager-panel {
+    grid-column: 1 / -1;
   }
 }

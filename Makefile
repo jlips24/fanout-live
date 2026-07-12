@@ -79,6 +79,10 @@ run-web: venv ## Run the web UI locally.
 docker-build: ## Build the Docker image.
 	docker build -t "$(IMAGE):$(TAG)" .
 
+.PHONY: docker-clean-build
+docker-clean-build: ## Build the Docker image without cached layers.
+	docker build --pull --no-cache -t "$(IMAGE):$(TAG)" .
+
 .PHONY: docker-unit-test
 docker-unit-test: docker-build ## Run unit tests inside the Docker image.
 	$(DOCKER_TEST_RUN) python -m unittest $(UNIT_TEST_MODULES)
@@ -92,6 +96,11 @@ docker-test: docker-unit-test docker-integration-test ## Run unit and integratio
 
 .PHONY: docker-run
 docker-run: ## Run the Docker image directly, using ./data for config persistence.
+	mkdir -p "$(DATA_DIR)"
+	docker run --rm -p 1935:1935 -p 8080:8080 -v "$$(pwd)/$(DATA_DIR):/config" "$(IMAGE):$(TAG)"
+
+.PHONY: docker-clean-run
+docker-clean-run: docker-clean-build ## Build without cached layers, then run the Docker image.
 	mkdir -p "$(DATA_DIR)"
 	docker run --rm -p 1935:1935 -p 8080:8080 -v "$$(pwd)/$(DATA_DIR):/config" "$(IMAGE):$(TAG)"
 

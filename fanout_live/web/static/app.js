@@ -20,6 +20,16 @@ const fields = {
   toggleSourceKey: document.querySelector("#toggle-source-key"),
   copySourceKey: document.querySelector("#copy-source-key"),
   pipelineList: document.querySelector("#pipeline-list"),
+  managerPreviewFrame: document.querySelector("#manager-preview-frame"),
+  managerPreviewImage: document.querySelector("#manager-preview-image"),
+  managerPreviewPlaceholder: document.querySelector("#manager-preview-placeholder"),
+  managerPreviewTitle: document.querySelector("#manager-preview-title"),
+  managerPreviewDetail: document.querySelector("#manager-preview-detail"),
+  managerPreviewShell: document.querySelector("#manager-preview-shell"),
+  managerPreviewToggle: document.querySelector("#manager-preview-toggle"),
+  managerPipelineCards: document.querySelector("#manager-pipeline-cards"),
+  managerPanels: document.querySelector("#manager-panels"),
+  panelLayoutToggle: document.querySelector("#panel-layout-toggle"),
   pipelineSettings: document.querySelector("#pipeline-settings"),
   sources: document.querySelector("#sources"),
   destinations: document.querySelector("#destinations"),
@@ -45,13 +55,17 @@ const fields = {
   addSource: document.querySelector("#add-source"),
   addDestination: document.querySelector("#add-destination"),
   pipelineTemplate: document.querySelector("#pipeline-card-template"),
+  panelTemplate: document.querySelector("#panel-row-template"),
   sourceTemplate: document.querySelector("#source-template"),
   destinationTemplate: document.querySelector("#destination-template"),
 };
 
-const APP_BUILD_ID = "bitrate-kbps-30s-v2";
+const APP_BUILD_ID = "stream-manager-v14";
 const BITRATE_GRAPH_SECONDS = 30;
 const BITRATE_GRAPH_POINTS = 30;
+const MANAGER_PREVIEW_COLLAPSED_KEY = "fanout.managerPreviewCollapsed";
+const PANEL_GRID_COLUMNS = 12;
+const PANEL_GRID_MAX_ROWS = 6;
 
 let config = null;
 let messageTimer = null;
@@ -63,6 +77,8 @@ let statusTimer = null;
 let authEnabled = false;
 let authSettings = null;
 let lastStatus = null;
+let managerPreviewCollapsed = localStorage.getItem(MANAGER_PREVIEW_COLLAPSED_KEY) === "true";
+let panelEditMode = false;
 
 async function request(path, options = {}) {
   const response = await fetch(path, {
@@ -174,6 +190,7 @@ function renderConfig(nextConfig) {
   fields.ffmpegBinary.value = config.ffmpeg.binary;
   fields.ffmpegLogLevel.value = config.ffmpeg.log_level;
   renderPipelineDashboard(lastStatus);
+  renderStreamManager(lastStatus);
   renderSettings();
   renderSourceSummary();
 }
@@ -226,10 +243,13 @@ function renderPipelineDashboard(status = null) {
         <svg class="bitrate-graph pipeline-graph" viewBox="0 0 180 42" role="img" aria-label="Pipeline bitrate graph"></svg>
       </div>
       <div class="row-actions">
+        <span class="mini-badge pipeline-enabled-badge"></span>
+        <span class="mini-badge pipeline-live-badge"></span>
         <label class="switch"><input type="checkbox" class="dashboard-pipeline-enabled"><span></span></label>
         <button class="secondary edit-pipeline" type="button">Edit</button>
       </div>
     `;
+    const isLive = Boolean(pipelineStatus?.live);
     article.querySelector("strong").textContent = pipeline.name;
     article.querySelector(".pipeline-route").textContent = transcode
       ? `${sourceName} -> ${transcode.codec.toUpperCase()} ${transcode.video_bitrate_kbps} kbps -> ${destinationName}`
@@ -237,10 +257,20 @@ function renderPipelineDashboard(status = null) {
     article.querySelector(".live-dot").classList.toggle("live", Boolean(pipelineStatus?.live));
     article.querySelector(".pipeline-bitrate").textContent = formatBitrate(pipelineStatus?.bitrateKbps || 0);
     renderBitrateGraph(article.querySelector(".pipeline-graph"), pipelineStatus?.bitrateHistory || []);
+    setBadge(article.querySelector(".pipeline-enabled-badge"), pipeline.enabled ? "Enabled" : "Paused", pipeline.enabled ? "ready" : "idle");
+    setBadge(
+      article.querySelector(".pipeline-live-badge"),
+      isLive ? "Live" : status?.running && pipeline.enabled ? "Waiting" : "Offline",
+      isLive ? "live" : status?.running && pipeline.enabled ? "ready" : "idle",
+    );
+    if (pipelineStatus?.mode) {
+      article.querySelector(".pipeline-live-badge").title = pipelineStatus.mode;
+    }
     article.querySelector(".dashboard-pipeline-enabled").checked = pipeline.enabled;
     article.querySelector(".dashboard-pipeline-enabled").addEventListener("change", (event) => {
       pipeline.enabled = event.target.checked;
       renderSettings();
+      renderStreamManager(lastStatus);
       scheduleAutosave(0);
     });
     article.querySelector(".edit-pipeline").addEventListener("click", () => {
@@ -249,6 +279,394 @@ function renderPipelineDashboard(status = null) {
     });
     fields.pipelineList.append(article);
   }
+}
+
+function renderStreamManager(status = null) {
+  renderManagerPipelineCards(status);
+  renderManagerPanels();
+}
+
+function renderManagerPipelineCards(status = null) {
+  fields.managerPipelineCards.replaceChildren();
+  if (!config?.pipelines?.length) {
+    const empty = document.createElement("span");
+    empty.className = "manager-pipeline-chip manager-pipeline-chip-empty";
+    empty.textContent = "No pipelines configured.";
+    fields.managerPipelineCards.append(empty);
+    return;
+  }
+
+  const pipelineStatuses = new Map((status?.pipelines || []).map((pipeline) => [pipeline.name, pipeline]));
+  for (const pipeline of config.pipelines) {
+    const pipelineStatus = pipelineStatuses.get(pipeline.name);
+    const destination = destinationById(pipeline.destination_id || pipeline.destination);
+    const chip = document.createElement("span");
+    chip.className = "manager-pipeline-chip";
+    chip.innerHTML = `
+      <span class="live-dot"></span>
+      <strong></strong>
+      <span class="manager-chip-status"></span>
+      <span class="manager-chip-enabled"></span>
+    `;
+    const isLive = Boolean(pipelineStatus?.live);
+    const state = isLive ? "Live" : status?.running && pipeline.enabled ? "Waiting" : "Offline";
+    chip.classList.toggle("live", isLive);
+    chip.classList.toggle("paused", !pipeline.enabled);
+    chip.title = destination?.name ? `${pipeline.name} to ${destination.name}` : pipeline.name;
+    chip.querySelector("strong").textContent = pipeline.name;
+    chip.querySelector(".manager-chip-status").textContent = state;
+    chip.querySelector(".manager-chip-enabled").textContent = pipeline.enabled ? "Enabled" : "Paused";
+    chip.querySelector(".live-dot").classList.toggle("live", isLive);
+    fields.managerPipelineCards.append(chip);
+  }
+}
+
+function renderManagerPanels() {
+  fields.managerPanels.replaceChildren();
+  fields.managerPanels.classList.toggle("editing", panelEditMode);
+  if (!config?.pipelines?.length) {
+    renderPanelEmptyState("No panels configured.");
+    return;
+  }
+
+  const activePanels = config.pipelines
+    .flatMap((pipeline, pipelineIndex) => (pipeline.panels || [])
+      .map((panel, panelIndex) => ({
+        ...panel,
+        pipelineIndex,
+        panelIndex,
+        pipelineName: pipeline.name,
+      }))
+      .filter((panel) => panel.enabled))
+    .sort((left, right) => (left.order ?? 0) - (right.order ?? 0));
+  if (!activePanels.length) {
+    renderPanelEmptyState("Enable panels in pipeline settings to show embeds here.");
+    return;
+  }
+
+  for (const panel of activePanels) {
+    const embedUrl = normalizePanelEmbedUrl(panel.url);
+    const article = document.createElement("article");
+    article.className = "manager-panel";
+    article.dataset.pipelineIndex = String(panel.pipelineIndex);
+    article.dataset.panelIndex = String(panel.panelIndex);
+    article.draggable = false;
+    setPanelGridSize(article, panel);
+    article.innerHTML = `
+      <header>
+        <button class="manager-panel-grab" type="button" title="Move panel" aria-label="Move panel">⠿</button>
+        <div>
+          <h3></h3>
+          <p></p>
+        </div>
+        <a target="_blank" rel="noopener noreferrer">Open</a>
+      </header>
+      <div class="manager-panel-body">
+        <iframe loading="lazy" referrerpolicy="no-referrer-when-downgrade" allow="autoplay; fullscreen"></iframe>
+      </div>
+      <button class="manager-panel-resize" type="button" title="Resize panel" aria-label="Resize panel"></button>
+    `;
+    article.querySelector("h3").textContent = panel.title;
+    article.querySelector("p").textContent = panel.pipelineName;
+    article.querySelector("a").href = embedUrl;
+    article.querySelector("iframe").src = embedUrl;
+    article.querySelector("iframe").title = `${panel.pipelineName}: ${panel.title}`;
+    bindManagerPanelEditor(article);
+    fields.managerPanels.append(article);
+  }
+}
+
+function setPanelGridSize(element, panel) {
+  element.style.setProperty("--panel-columns", String(clampNumber(panel.columns ?? 6, 1, PANEL_GRID_COLUMNS)));
+  element.style.setProperty("--panel-rows", String(clampNumber(panel.rows ?? 4, 1, PANEL_GRID_MAX_ROWS)));
+}
+
+function bindManagerPanelEditor(article) {
+  bindGrabHandle(article);
+  bindResizeHandles(article);
+}
+
+function bindGrabHandle(article) {
+  const grab = article.querySelector(".manager-panel-grab");
+  grab.addEventListener("pointerdown", (event) => startPanelMove(event, article));
+}
+
+function bindResizeHandles(article) {
+  for (const handle of article.querySelectorAll(".manager-panel-resize")) {
+    handle.addEventListener("pointerdown", (event) => {
+      if (!panelEditMode) return;
+      startPanelResize(event, article);
+    });
+  }
+}
+
+function updatePanelLayoutToggle() {
+  fields.panelLayoutToggle.textContent = panelEditMode ? "▣" : "✎";
+  fields.panelLayoutToggle.title = panelEditMode ? "Save panel layout" : "Edit panel layout";
+  fields.panelLayoutToggle.setAttribute("aria-label", fields.panelLayoutToggle.title);
+}
+
+function setPanelLayoutEditing(editing) {
+  panelEditMode = editing;
+  fields.managerPanels.classList.toggle("editing", editing);
+  fields.panelLayoutToggle.classList.toggle("dirty", false);
+  updatePanelLayoutToggle();
+  renderManagerPanels();
+}
+
+async function togglePanelLayoutEditing() {
+  if (!panelEditMode) {
+    setPanelLayoutEditing(true);
+    return;
+  }
+
+  syncPanelSettingsFromConfig();
+  await saveConfig({ render: false, showMessage: false });
+  renderSettings();
+  setPanelLayoutEditing(false);
+  setMessage("Panel layout saved.", false, 1600);
+}
+
+function notePanelLayoutChanged() {
+  if (panelEditMode) {
+    fields.panelLayoutToggle.classList.add("dirty");
+  }
+}
+
+function panelDragKey(article) {
+  return `${article.dataset.pipelineIndex}:${article.dataset.panelIndex}`;
+}
+
+function startPanelMove(event, article) {
+  if (!panelEditMode) return;
+  event.preventDefault();
+  const grab = event.currentTarget;
+  grab.setPointerCapture(event.pointerId);
+  article.classList.add("dragging");
+
+  const onMove = (moveEvent) => {
+    const targetPanel = panelElementAtPoint(moveEvent.clientX, moveEvent.clientY, article);
+    if (!targetPanel) return;
+    movePanelDuringPointer(panelDragKey(article), panelDragKey(targetPanel), moveEvent);
+  };
+  const onEnd = () => {
+    grab.removeEventListener("pointermove", onMove);
+    grab.removeEventListener("pointerup", onEnd);
+    grab.removeEventListener("pointercancel", onEnd);
+    article.classList.remove("dragging");
+    syncPanelSettingsFromConfig();
+    renderSettings();
+  };
+
+  grab.addEventListener("pointermove", onMove);
+  grab.addEventListener("pointerup", onEnd, { once: true });
+  grab.addEventListener("pointercancel", onEnd, { once: true });
+}
+
+function movePanelDuringPointer(sourceKey, targetKey, event) {
+  if (!sourceKey || sourceKey === targetKey) return;
+  const sourceElement = panelElementByKey(sourceKey);
+  const targetElement = panelElementByKey(targetKey);
+  if (!sourceElement || !targetElement) return;
+
+  const activeRefs = activePanelRefs();
+  const sourceIndex = activeRefs.findIndex((ref) => ref.key === sourceKey);
+  const targetIndex = activeRefs.findIndex((ref) => ref.key === targetKey);
+  if (sourceIndex < 0 || targetIndex < 0) return;
+
+  const targetRect = targetElement.getBoundingClientRect();
+  const insertAfter = event.clientY > targetRect.top + (targetRect.height / 2);
+  if (insertAfter && targetElement.nextElementSibling === sourceElement) return;
+  if (!insertAfter && sourceElement.nextElementSibling === targetElement) return;
+
+  const [source] = activeRefs.splice(sourceIndex, 1);
+  let insertIndex = targetIndex;
+  if (insertAfter && sourceIndex > targetIndex) {
+    insertIndex = targetIndex + 1;
+  }
+  if (insertAfter && sourceIndex < targetIndex) {
+    insertIndex = targetIndex;
+  }
+  if (!insertAfter && sourceIndex < targetIndex) {
+    insertIndex = targetIndex - 1;
+  }
+  activeRefs.splice(insertIndex, 0, source);
+  activeRefs.forEach((ref, index) => {
+    config.pipelines[ref.pipelineIndex].panels[ref.panelIndex].order = index;
+  });
+
+  if (insertAfter) {
+    targetElement.after(sourceElement);
+  } else {
+    targetElement.before(sourceElement);
+  }
+  syncPanelSettingsFromConfig();
+  notePanelLayoutChanged();
+}
+
+function panelElementAtPoint(x, y, sourceElement) {
+  sourceElement.classList.add("drag-source-hit-test");
+  const element = document.elementFromPoint(x, y);
+  sourceElement.classList.remove("drag-source-hit-test");
+  return element?.closest?.(".manager-panel") || null;
+}
+
+function panelElementByKey(key) {
+  return [...fields.managerPanels.querySelectorAll(".manager-panel")]
+    .find((panel) => panelDragKey(panel) === key);
+}
+
+function activePanelRefs() {
+  return config.pipelines
+    .flatMap((pipeline, pipelineIndex) => (pipeline.panels || [])
+      .map((panel, panelIndex) => ({
+        key: `${pipelineIndex}:${panelIndex}`,
+        pipelineIndex,
+        panelIndex,
+        enabled: panel.enabled,
+        order: panel.order ?? 0,
+      }))
+      .filter((panel) => panel.enabled))
+    .sort((left, right) => left.order - right.order);
+}
+
+function startPanelResize(event, article) {
+  event.preventDefault();
+  event.stopPropagation();
+  article.classList.add("resizing");
+  const panel = panelFromArticle(article);
+  const startX = event.clientX;
+  const startY = event.clientY;
+  const startColumns = clampNumber(panel.columns ?? 6, 1, PANEL_GRID_COLUMNS);
+  const startRows = clampNumber(panel.rows ?? 4, 1, PANEL_GRID_MAX_ROWS);
+  const columnWidth = fields.managerPanels.getBoundingClientRect().width / PANEL_GRID_COLUMNS;
+  const rowHeight = Number.parseFloat(getComputedStyle(fields.managerPanels).gridAutoRows) || 210;
+
+  const onMove = (moveEvent) => {
+    const columnDelta = (moveEvent.clientX - startX) / columnWidth;
+    const rowDelta = (moveEvent.clientY - startY) / rowHeight;
+    const nextColumns = clampNumber(Math.round(startColumns + columnDelta), 1, PANEL_GRID_COLUMNS);
+    const nextRows = clampNumber(Math.round(startRows + rowDelta), 1, PANEL_GRID_MAX_ROWS);
+    panel.columns = nextColumns;
+    panel.rows = nextRows;
+    setPanelGridSize(article, panel);
+    notePanelLayoutChanged();
+  };
+  const onEnd = () => {
+    window.removeEventListener("pointermove", onMove);
+    window.removeEventListener("pointerup", onEnd);
+    article.classList.remove("resizing");
+    syncPanelSettingsFromConfig();
+    renderSettings();
+  };
+  window.addEventListener("pointermove", onMove);
+  window.addEventListener("pointerup", onEnd, { once: true });
+}
+
+function panelFromArticle(article) {
+  return config.pipelines[Number(article.dataset.pipelineIndex)].panels[Number(article.dataset.panelIndex)];
+}
+
+function clampNumber(value, min, max) {
+  return Math.min(max, Math.max(min, Number(value) || min));
+}
+
+function syncPanelSettingsFromConfig() {
+  [...fields.pipelineSettings.querySelectorAll(".pipeline-card")].forEach((pipelineRow, pipelineIndex) => {
+    const pipeline = config.pipelines[pipelineIndex];
+    if (!pipeline) return;
+    [...pipelineRow.querySelectorAll(".panel-row")].forEach((panelRow, panelIndex) => {
+      const panel = pipeline.panels?.[panelIndex];
+      if (!panel) return;
+      panelRow.dataset.columns = String(panel.columns ?? 6);
+      panelRow.dataset.rows = String(panel.rows ?? 4);
+      panelRow.dataset.order = String(panel.order ?? panelIndex);
+    });
+  });
+}
+
+function renderPanelEmptyState(text) {
+  const empty = document.createElement("p");
+  empty.className = "empty-state";
+  empty.textContent = text;
+  fields.managerPanels.append(empty);
+}
+
+function normalizePanelEmbedUrl(rawUrl) {
+  const panelUrl = normalizePanelUrlScheme(rawUrl);
+  try {
+    const url = new URL(panelUrl, window.location.href);
+    const host = url.hostname.toLowerCase();
+    if (host === "twitch.tv" || host === "www.twitch.tv") {
+      return normalizeTwitchChatUrl(url);
+    }
+    if (host === "youtube.com" || host === "www.youtube.com" || host === "youtu.be") {
+      return normalizeYoutubeChatUrl(url);
+    }
+    return url.toString();
+  } catch (_error) {
+    return panelUrl;
+  }
+}
+
+function normalizePanelUrlScheme(rawUrl) {
+  const url = rawUrl.trim();
+  if (!url || /^https?:\/\//i.test(url)) {
+    return url;
+  }
+  return `https://${url}`;
+}
+
+function normalizeTwitchChatUrl(url) {
+  const parts = url.pathname.split("/").filter(Boolean);
+  let channel = "";
+  if (parts[0] === "embed" && parts[2] === "chat") {
+    channel = parts[1];
+  } else if (parts[0] === "popout" && parts[2] === "chat") {
+    channel = parts[1];
+  } else if (parts[1] === "chat") {
+    channel = parts[0];
+  }
+  if (!channel) {
+    return url.toString();
+  }
+
+  url.hostname = "www.twitch.tv";
+  url.pathname = `/embed/${channel}/chat`;
+  url.searchParams.set("parent", window.location.hostname);
+  url.searchParams.set("darkpopout", "1");
+  return url.toString();
+}
+
+function normalizeYoutubeChatUrl(url) {
+  const videoId = youtubeVideoId(url);
+  if (!videoId) {
+    return url.toString();
+  }
+
+  url.hostname = "www.youtube.com";
+  url.pathname = "/live_chat";
+  url.search = "";
+  url.searchParams.set("v", videoId);
+  url.searchParams.set("embed_domain", window.location.hostname);
+  return url.toString();
+}
+
+function youtubeVideoId(url) {
+  const parts = url.pathname.split("/").filter(Boolean);
+  if (url.pathname === "/live_chat") {
+    return url.searchParams.get("v") || "";
+  }
+  if (url.hostname.toLowerCase() === "youtu.be") {
+    return parts[0] || "";
+  }
+  if (parts[0] === "live" || parts[0] === "embed" || parts[0] === "shorts") {
+    return parts[1] || "";
+  }
+  if (url.pathname === "/watch") {
+    return url.searchParams.get("v") || "";
+  }
+  return "";
 }
 
 function renderSettings() {
@@ -281,6 +699,11 @@ function addPipelineRow(pipeline = defaultPipeline()) {
   row.querySelector(".pipeline-video-bitrate").value = transcode.video_bitrate_kbps;
   row.querySelector(".pipeline-audio-bitrate").value = transcode.audio_bitrate_kbps;
   row.querySelector(".pipeline-preset").value = transcode.preset;
+  for (const panel of pipeline.panels || []) addPanelRow(row, panel);
+  row.querySelector(".add-panel").addEventListener("click", () => {
+    addPanelRow(row);
+    scheduleAutosave(0);
+  });
   row.querySelector(".pipeline-mode").addEventListener("change", () => updateTranscodeVisibility(row));
   row.querySelector(".remove-pipeline").addEventListener("click", () => {
     row.remove();
@@ -288,6 +711,21 @@ function addPipelineRow(pipeline = defaultPipeline()) {
   });
   fields.pipelineSettings.append(row);
   updateTranscodeVisibility(row);
+}
+
+function addPanelRow(pipelineRow, panel = defaultPanel()) {
+  const row = fields.panelTemplate.content.firstElementChild.cloneNode(true);
+  row.querySelector(".panel-enabled").checked = panel.enabled ?? true;
+  row.querySelector(".panel-title").value = panel.title;
+  row.querySelector(".panel-url").value = panel.url;
+  row.dataset.columns = String(panel.columns ?? 6);
+  row.dataset.rows = String(panel.rows ?? 4);
+  row.dataset.order = String(panel.order ?? panelListOrder(pipelineRow));
+  row.querySelector(".remove-panel").addEventListener("click", () => {
+    row.remove();
+    scheduleAutosave(0);
+  });
+  pipelineRow.querySelector(".panel-list").append(row);
 }
 
 function addSourceRow(source = defaultSource()) {
@@ -382,6 +820,14 @@ function collectConfig() {
           audio_bitrate_kbps: Number(row.querySelector(".pipeline-audio-bitrate").value),
           preset: row.querySelector(".pipeline-preset").value,
         }],
+        panels: [...row.querySelectorAll(".panel-row")].map((panelRow) => ({
+          enabled: panelRow.querySelector(".panel-enabled").checked,
+          title: panelRow.querySelector(".panel-title").value,
+          url: normalizePanelUrlScheme(panelRow.querySelector(".panel-url").value),
+          columns: Number(panelRow.dataset.columns || 6),
+          rows: Number(panelRow.dataset.rows || 4),
+          order: Number(panelRow.dataset.order || 0),
+        })),
       };
     }),
   };
@@ -399,6 +845,7 @@ async function saveConfig({ render = true, showMessage = true } = {}) {
       config = saved;
       syncSettingsFromConfig();
       renderPipelineDashboard(lastStatus);
+      renderStreamManager(lastStatus);
       renderSourceSummary();
     }
     if (showMessage) {
@@ -473,6 +920,7 @@ async function refreshStatus() {
     fields.statusDot.classList.toggle("running", status.state === "waiting");
     fields.statusDot.classList.toggle("live", status.state === "live");
     fields.previewFrame.classList.toggle("live", status.streamIncoming);
+    fields.managerPreviewFrame.classList.toggle("live", status.streamIncoming);
     fields.statusText.textContent = status.state === "live" ? "Live" : status.ready ? "Ready" : "Needs config";
     fields.streamSummary.textContent = status.state === "live"
       ? "Source is connected. Enabled pipelines will receive data as frames arrive."
@@ -484,11 +932,13 @@ async function refreshStatus() {
       : status.sourcePublishing
         ? "Source connected"
         : "No stream detected";
+    fields.managerPreviewTitle.textContent = fields.previewTitle.textContent;
     fields.previewDetail.textContent = status.streamIncoming
       ? "Preview frames are updating."
       : status.sourcePublishing
         ? "Waiting for preview frames."
       : "Point OBS at the source URL when you are ready to stream.";
+    fields.managerPreviewDetail.textContent = fields.previewDetail.textContent;
     if (status.source) {
       fields.sourceName.textContent = status.source.name;
       fields.sourceUrl.textContent = status.source.publicUrl;
@@ -496,7 +946,10 @@ async function refreshStatus() {
       fields.sourceBitrate.textContent = formatBitrate(status.source.bitrateKbps || 0);
       renderBitrateGraph(fields.sourceBitrateGraph, status.source.bitrateHistory || []);
     }
-    renderPipelineDashboard(status);
+    if (config) {
+      renderPipelineDashboard(status);
+      renderManagerPipelineCards(status);
+    }
     if (status.lastError) setMessage(status.lastError, true);
   } catch (error) {
     fields.statusText.textContent = "Unavailable";
@@ -529,10 +982,14 @@ function updateControlButtons(running) {
 
 function updatePreview(status) {
   const shouldShowPreview = Boolean(status.streamIncoming && status.previewUrl);
-  fields.previewImage.hidden = !shouldShowPreview;
-  fields.previewPlaceholder.hidden = shouldShowPreview;
+  const shouldShowDashboardPreview = shouldShowPreview && isPageActive("dashboard");
+  const shouldShowManagerPreview = shouldShowPreview && isPageActive("stream-manager") && !managerPreviewCollapsed;
+  fields.previewImage.hidden = !shouldShowDashboardPreview;
+  fields.previewPlaceholder.hidden = shouldShowDashboardPreview;
+  fields.managerPreviewImage.hidden = !shouldShowManagerPreview;
+  fields.managerPreviewPlaceholder.hidden = shouldShowManagerPreview || managerPreviewCollapsed;
 
-  if (shouldShowPreview) {
+  if (shouldShowDashboardPreview || shouldShowManagerPreview) {
     refreshPreviewImage();
     if (!previewTimer) {
       previewTimer = setInterval(refreshPreviewImage, 1000);
@@ -541,6 +998,7 @@ function updatePreview(status) {
   }
 
   fields.previewImage.removeAttribute("src");
+  fields.managerPreviewImage.removeAttribute("src");
   if (previewTimer) {
     clearInterval(previewTimer);
     previewTimer = null;
@@ -548,7 +1006,30 @@ function updatePreview(status) {
 }
 
 function refreshPreviewImage() {
-  fields.previewImage.src = `/preview/preview.jpg?v=${Date.now()}`;
+  const src = `/preview/preview.jpg?v=${Date.now()}`;
+  if (isPageActive("dashboard")) {
+    fields.previewImage.src = src;
+  }
+  if (isPageActive("stream-manager") && !managerPreviewCollapsed) {
+    fields.managerPreviewImage.src = src;
+  }
+}
+
+function setManagerPreviewCollapsed(collapsed) {
+  managerPreviewCollapsed = collapsed;
+  localStorage.setItem(MANAGER_PREVIEW_COLLAPSED_KEY, String(collapsed));
+  fields.managerPreviewShell.classList.toggle("collapsed", collapsed);
+  fields.managerPreviewFrame.hidden = collapsed;
+  fields.managerPreviewToggle.textContent = collapsed ? "▾" : "▴";
+  fields.managerPreviewToggle.title = collapsed ? "Show stream preview" : "Collapse stream preview";
+  fields.managerPreviewToggle.setAttribute("aria-label", fields.managerPreviewToggle.title);
+  if (collapsed) {
+    fields.managerPreviewImage.hidden = true;
+    fields.managerPreviewPlaceholder.hidden = true;
+    fields.managerPreviewImage.removeAttribute("src");
+  } else if (lastStatus) {
+    updatePreview(lastStatus);
+  }
 }
 
 function formatBitrate(kbps) {
@@ -719,6 +1200,24 @@ function activateTab(name) {
   }
 }
 
+function activatePage(name) {
+  for (const tab of document.querySelectorAll(".view-tab")) {
+    tab.classList.toggle("active", tab.dataset.page === name);
+  }
+  for (const page of document.querySelectorAll(".app-page")) {
+    const active = page.id === `page-${name}`;
+    page.classList.toggle("active", active);
+    page.hidden = !active;
+  }
+  if (lastStatus) {
+    updatePreview(lastStatus);
+  }
+}
+
+function isPageActive(name) {
+  return document.querySelector(`#page-${name}`)?.classList.contains("active");
+}
+
 function defaultTranscode() {
   return { codec: "h264", video_bitrate_kbps: 6000, audio_bitrate_kbps: 160, preset: "veryfast" };
 }
@@ -730,7 +1229,21 @@ function defaultPipeline() {
     source_id: config.sources[0]?.id || "",
     destination_id: config.destinations[0]?.id || "",
     transcodes: [],
+    panels: [],
   };
+}
+
+function defaultPanel() {
+  return { enabled: true, title: "Panel", url: "https://", columns: 6, rows: 4, order: nextPanelOrder() };
+}
+
+function nextPanelOrder() {
+  const orders = config?.pipelines?.flatMap((pipeline) => (pipeline.panels || []).map((panel) => panel.order ?? 0)) || [];
+  return orders.length ? Math.max(...orders) + 1 : 0;
+}
+
+function panelListOrder(pipelineRow) {
+  return pipelineRow.querySelectorAll(".panel-row").length;
 }
 
 function defaultSource() {
@@ -759,6 +1272,12 @@ function sourceById(id) {
 
 function destinationById(id) {
   return config.destinations.find((destination) => destination.id === id || destination.name === id);
+}
+
+function setBadge(element, text, state) {
+  element.textContent = text;
+  element.classList.toggle("live", state === "live");
+  element.classList.toggle("ready", state === "ready");
 }
 
 function makeId(prefix) {
@@ -864,9 +1383,15 @@ fields.toggleSourceKey.addEventListener("click", () => {
   toggleSecretInput(fields.sourceKey, fields.toggleSourceKey);
 });
 fields.copySourceKey.addEventListener("click", () => copyText(fields.sourceKey.value));
+fields.managerPreviewToggle.addEventListener("click", () => setManagerPreviewCollapsed(!managerPreviewCollapsed));
+fields.panelLayoutToggle.addEventListener("click", () => togglePanelLayoutEditing());
 
 for (const tab of document.querySelectorAll(".tab")) {
   tab.addEventListener("click", () => activateTab(tab.dataset.tab));
+}
+
+for (const tab of document.querySelectorAll(".view-tab")) {
+  tab.addEventListener("click", () => activatePage(tab.dataset.page));
 }
 
 for (const element of [
@@ -880,4 +1405,5 @@ for (const element of [
   element.addEventListener("change", () => scheduleAutosave());
 }
 
+setManagerPreviewCollapsed(managerPreviewCollapsed);
 init();

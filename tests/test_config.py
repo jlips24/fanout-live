@@ -300,6 +300,64 @@ destination = "twitch"
             self.assertEqual(saved["destinations"][0]["service"], "file")
             self.assertEqual(saved["destinations"][0]["url"], "/config/recordings")
 
+    def test_pipeline_panels_round_trip_through_edit_config(self):
+        from fanout_live.config_store import save_raw_config
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config_path = Path(tmpdir) / "config.toml"
+            saved = save_raw_config(
+                config_path,
+                {
+                    "sources": [{"name": "obs"}],
+                    "ffmpeg": {"binary": "ffmpeg", "log_level": "info"},
+                    "destinations": [
+                        {
+                            "name": "twitch",
+                            "enabled": False,
+                            "service": "twitch",
+                            "stream_key": "",
+                            "url": "",
+                        }
+                    ],
+                    "pipelines": [
+                        {
+                            "name": "twitch",
+                            "enabled": True,
+                            "source_id": "obs",
+                            "destination_id": "twitch",
+                            "transcodes": [],
+                            "panels": [
+                                {
+                                    "title": "Twitch chat",
+                                    "url": "https://www.twitch.tv/embed/example/chat?parent=localhost",
+                                    "enabled": False,
+                                    "columns": 8,
+                                    "rows": 2,
+                                    "order": 4,
+                                }
+                            ],
+                        }
+                    ],
+                },
+            )
+
+            self.assertEqual(saved["pipelines"][0]["panels"][0]["title"], "Twitch chat")
+            self.assertEqual(saved["pipelines"][0]["panels"][0]["enabled"], False)
+            self.assertEqual(saved["pipelines"][0]["panels"][0]["columns"], 8)
+            self.assertEqual(saved["pipelines"][0]["panels"][0]["rows"], 2)
+            self.assertEqual(saved["pipelines"][0]["panels"][0]["order"], 4)
+
+            config = load_config(config_path, require_ready=False)
+            self.assertEqual(config.pipelines[0].panels[0].title, "Twitch chat")
+            self.assertFalse(config.pipelines[0].panels[0].enabled)
+            self.assertEqual(config.pipelines[0].panels[0].columns, 8)
+            self.assertEqual(config.pipelines[0].panels[0].rows, 2)
+            self.assertEqual(config.pipelines[0].panels[0].order, 4)
+            self.assertEqual(
+                config.pipelines[0].panels[0].url,
+                "https://www.twitch.tv/embed/example/chat?parent=localhost",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
